@@ -2,18 +2,22 @@
 
 #include "socket_client.hpp"
 
-#include <vector>
-using std::vector;
+#include <unordered_map>
+
+#include <thread>
 
 class SocketServer {
-    int m_server_fd;
-    std::vector<SocketClient*> m_clients;
+    static int m_hosting_port;
+    static std::unordered_map<int, SocketClient*> m_clients; // fd -> SocketClient* map
+    static std::thread m_server_thread;
 
-    static void __thread_entry(void* ptr);
+    static int __openHostingSocket(int max_connections);
+    static void __thread_entry(int max_connections);
+
+    static void RegisterClient(SocketClient* client);
+    static void DeregisterClient(SocketClient* client);
 
 public:
-    SocketServer();
-    ~SocketServer();
-
-    int RunThread(int max_connections=1024);
+    static int Initialize();
+    static void WaitForCompletion();
 };

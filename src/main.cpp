@@ -10,6 +10,10 @@ int main(int argc, char* argv[]) {
     if (Log::Initialize() != 0)
         return 2;
 
+    SocketServer::Initialize();
+
+    SocketServer::WaitForCompletion();
+
     Log::Cleanup();
 
     return 0;
