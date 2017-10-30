@@ -14,5 +14,4 @@ To install [JSON for modern C++](https://github.com/nlohmann/json):
 ```
     brew tap nlohmann/json
     brew install nlohmann_json
-
 ```
