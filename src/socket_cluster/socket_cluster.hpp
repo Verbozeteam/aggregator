@@ -86,6 +86,25 @@ public:
      * @param client SocketClientPtr to deregister
      */
     static void DeregisterClient(SocketClientPtr client);
+
+    /**
+     * Returns whether or not a client with the given IP is registered
+     * @param  ip IP to check against
+     * @return    true iff a client is registered with the given IP
+     */
+    static bool IsClientRegistered(std::string ip);
+
+    /**
+     * Retrieves a registered client by its IP
+     * @param  ip IP of the client
+     * @return    registered client (nullptr if no client with the given IP is registered)
+     */
+    static SocketClientPtr GetClient(std::string ip);
+
+    /**
+     * @return  a list of clients registered
+     */
+    static std::vector<SocketClientPtr> GetClientsList();
 };
 
 

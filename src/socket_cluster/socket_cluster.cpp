@@ -49,6 +49,8 @@ SocketClient::~SocketClient() {
     if (m_client_fd > 0)
         close(m_client_fd);
     m_client_fd = -1;
+
+    LOG(error) << "BOOM BOOM BOOM CLIENT DESTRUCTOR " << m_client_ip << " " << m_client_fd;
 }
 
 bool SocketClient::OnReadingAvailable() {
@@ -82,7 +84,7 @@ bool SocketClient::OnReadingAvailable() {
                     LOG(warning) << "Client " << m_client_ip << " sent invalid JSON " << s;
                 }
                 delete[] s;
-                if (j.is_null() || j.size() == 0 || !OnMessage(j)) {
+                if (j.is_null() || !OnMessage(j)) {
                     LOG(warning) << "Client " << m_client_ip << " (fd " << m_client_fd << ") communication failure";
                     return false;
                 }
@@ -122,6 +124,8 @@ void SocketClient::Write(json msg) {
     m_write_buffer.insert(std::end(m_write_buffer), cstr, cstr + payload_size);
     m_write_buffer_mutex.unlock();
 
+    SocketCluster::Notify();
+
     LOG(trace) << "Sent message from " << m_client_ip << ": " << msg;
 }
 
@@ -152,11 +156,7 @@ void SocketCluster::__thread_entry() {
 
         int maxfd = m_event_pipe_read_end;
 
-        std::vector<SocketClientPtr> clients;
-        m_clients_mutex.lock_shared(); // read lock
-        for (auto it = m_clients.begin(); it != m_clients.end(); it++)
-            clients.push_back(it->second);
-        m_clients_mutex.unlock_shared();
+        std::vector<SocketClientPtr> clients = GetClientsList();
 
         for (auto it = clients.begin(); it != clients.end(); it++) {
             SocketClientPtr cl = *it;
@@ -269,4 +269,27 @@ void SocketCluster::Notify() {
 void SocketCluster::Kill() {
     m_is_alive = false;
     Notify();
+}
+
+bool SocketCluster::IsClientRegistered(std::string ip) {
+    m_clients_mutex.lock_shared(); // read lock
+    bool ret = m_clients_by_ip.find(ip) != m_clients_by_ip.end();
+    m_clients_mutex.unlock_shared();
+    return ret;
+}
+
+SocketClientPtr SocketCluster::GetClient(std::string ip) {
+    m_clients_mutex.lock_shared(); // read lock
+    auto it = m_clients_by_ip.find(ip);
+    m_clients_mutex.unlock_shared();
+    return it == m_clients_by_ip.end() ? nullptr : it->second;
+}
+
+std::vector<SocketClientPtr> SocketCluster::GetClientsList() {
+    std::vector<SocketClientPtr> clients;
+    m_clients_mutex.lock_shared(); // read lock
+    for (auto it = m_clients.begin(); it != m_clients.end(); it++)
+        clients.push_back(it->second);
+    m_clients_mutex.unlock_shared();
+    return clients;
 }
