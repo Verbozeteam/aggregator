@@ -1,18 +1,28 @@
 #include "config/config.hpp"
 
 #include <iostream>
-using std::cout;
+#include <vector>
+#include <string>
+
+namespace std {
+    std::ostream& operator<<(std::ostream &os, const std::vector<std::string> &vec) {
+        for (auto item : vec)
+            os << item << " ";
+        return os;
+    }
+}
 
 po::options_description ConfigManager::m_options_desc;
 po::variables_map ConfigManager::m_variable_map;
 
 int ConfigManager::LoadFromCommandline(int argc, char* argv[]) {
     m_options_desc.add_options()
-        ("help", "produce help message")
-        ("verbozity", po::value<int>()->default_value(3), "Set logging verbozity (from 0 to 6 (6 being highest verbozity)) (default is 3)")
-        ("max-log-file-size", po::value<int>()->default_value(1 * 1024 * 1024), "Set the maximum size of a single log file (default is 1MB)")
-        ("max-num-log-files", po::value<int>()->default_value(5), "Set the maximum number of log files per run (default is 5)")
-        ("max-num-log-runs", po::value<int>()->default_value(5), "Set the maximum number of runs to log (default is 5)")
+        ("help,h", "produce help message")
+        ("verbozity,v", po::value<int>()->default_value(3), "Set logging verbozity (from 0 to 6 (6 being highest verbozity)) (default is 3)")
+        ("max-log-file-size,lfs", po::value<int>()->default_value(1 * 1024 * 1024), "Set the maximum size of a single log file (default is 1MB)")
+        ("max-num-log-files,nlf", po::value<int>()->default_value(5), "Set the maximum number of log files per run (default is 5)")
+        ("max-num-log-runs,nlr", po::value<int>()->default_value(5), "Set the maximum number of runs to log (default is 5)")
+        ("discovery-interfaces,i", po::value<std::vector<std::string>>()->multitoken()->default_value(std::vector<std::string>{"en0", "eth0", "eth1", "wlan0", "wlan1"}), "Set the interfaces on which discovery happens")
     ;
 
     try {

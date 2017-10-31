@@ -10,18 +10,6 @@ using json = nlohmann::json;
 
 typedef std::shared_ptr<class SocketClient> SocketClientPtr;
 
-/** Just a robust write() call */
-int __robust_write(int fd, uint8_t* buf, size_t buflen);
-
-/** Just a robust send() call */
-int __robust_send(int fd, uint8_t* buf, size_t buflen, int flags=0);
-
-/** Just a robust read() call */
-int __robust_read(int fd, uint8_t* buf, size_t maxread);
-
-/** Just a robust recv() call */
-int __robust_recv(int fd, uint8_t* buf, size_t maxread, int flags=0);
-
 /**
  * The SocketCluster facilitates the management of SocketClient's by running and
  * maintaining a thread that performs a select loop on the SocketClient's FDs.
@@ -40,19 +28,25 @@ int __robust_recv(int fd, uint8_t* buf, size_t maxread, int flags=0);
 class SocketCluster {
     friend class SocketClient;
 
-    static bool m_is_alive; // thread runs while true
-    static int m_event_pipe_read_end; // used to notify the select
-    static int m_event_pipe_write_end; // used to notify the select
-    static std::shared_timed_mutex m_clients_mutex; // shared mutex to protect m_clients and m_clients_by_ip
-    static std::unordered_map<int, SocketClientPtr> m_clients; // fd -> SocketClientPtr map
-    static std::unordered_map<std::string, SocketClientPtr> m_clients_by_ip; // ip -> SocketClientPtr map (same SocketClient* as above)
-    static std::thread m_server_thread; // thread running the select loop
+    /** thread runs while true */
+    static bool m_is_alive;
+    /** used to notify the select */
+    static int m_event_pipe_read_end;
+    /** used to notify the select */
+    static int m_event_pipe_write_end;
+    /** shared mutex to protect m_clients and m_clients_by_ip */
+    static std::shared_timed_mutex m_clients_mutex;
+    /** fd -> SocketClientPtr map */
+    static std::unordered_map<int, SocketClientPtr> m_clients;
+    /** ip -> SocketClientPtr map (same SocketClient* as above) */
+    static std::unordered_map<std::string, SocketClientPtr> m_clients_by_ip;
+    /** thread running the select loop */
+    static std::thread m_server_thread;
 
     /**
      * Entry point of the thread that performs the select on the clients
-     * @param max_connections [description]
      */
-    static void __thread_entry(int max_connections);
+    static void __thread_entry();
 
 public:
     /**
@@ -101,10 +95,14 @@ public:
 class SocketClient {
     friend class SocketCluster;
 
-    int m_client_fd; // fd for the socket
-    std::mutex m_write_buffer_mutex; // mutex to protect modifying the write buffer
-    std::vector<uint8_t> m_write_buffer; // pending write buffer
-    std::vector<uint8_t> m_read_buffer; // pending read buffer
+    /** fd for the socket */
+    int m_client_fd;
+    /** mutex to protect modifying the write buffer */
+    std::mutex m_write_buffer_mutex;
+    /** pending write buffer */
+    std::vector<uint8_t> m_write_buffer;
+    /** pending read buffer */
+    std::vector<uint8_t> m_read_buffer;
 
     /**
      * Connects a socket to the given address
@@ -135,6 +133,12 @@ protected:
     std::string m_client_ip; // IP address of the client (x.x.x.x format)
 
 public:
+    /**
+     * Creates a socket client and registers it in the system
+     * @param ip    Middleware server IP
+     * @param port  Middleware port
+     * @returns     The new client created, nullptr on failure
+     */
     template<typename T>
     static SocketClientPtr Create(std::string ip, int port) {
         int fd = __openConnection(ip, port);

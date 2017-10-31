@@ -16,6 +16,13 @@ protected:
 
 public:
 
+    /**
+     * Extend the SocketClient Write function to make it cache messages
+     */
     virtual void Write(json msg);
+
+    /**
+     * Extend the SocketClient OnMessage function to make it cache messages
+     */
     virtual bool OnMessage(json msg);
 };

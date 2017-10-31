@@ -16,7 +16,7 @@ public:
     template<typename T>
     static T get(std::string key) {
         if (m_variable_map.count(key))
-            return m_variable_map[key].as<int>();
+            return m_variable_map[key].as<T>();
         return T();
     };
 };

@@ -1,6 +1,7 @@
 #include "config/config.hpp"
 #include "logging/logging.hpp"
 #include "socket_cluster/socket_cluster.hpp"
+#include "utilities/network_utilities.hpp"
 
 #include <sys/socket.h>
 #include <stdlib.h>
@@ -12,55 +13,6 @@
 #include <unistd.h>
 
 #include <vector>
-
-
-int __robust_write(int fd, uint8_t* buf, size_t buflen) {
-    int attempt = 0;
-    int wbytes;
-    while (attempt++ < 5) {
-        wbytes = write(fd, buf, buflen);
-        if (wbytes < 0 && (errno == EINTR || errno == EAGAIN))
-            continue;
-        break;
-    }
-    return wbytes;
-}
-
-int __robust_send(int fd, uint8_t* buf, size_t buflen, int flags) {
-    int attempt = 0;
-    int wbytes;
-    while (attempt++ < 5) {
-        wbytes = send(fd, buf, buflen, flags);
-        if (wbytes < 0 && (errno == EINTR || errno == EAGAIN))
-            continue;
-        break;
-    }
-    return wbytes;
-}
-
-int __robust_read(int fd, uint8_t* buf, size_t maxread) {
-    int attempt = 0;
-    int rbytes;
-    while (attempt++ < 5) {
-        rbytes = read(fd, buf, maxread);
-        if (rbytes < 0 && (errno == EINTR || errno == EAGAIN))
-            continue;
-        break;
-    }
-    return rbytes;
-}
-
-int __robust_recv(int fd, uint8_t* buf, size_t maxread, int flags) {
-    int attempt = 0;
-    int rbytes;
-    while (attempt++ < 5) {
-        rbytes = recv(fd, buf, maxread, flags);
-        if (rbytes < 0 && (errno == EINTR || errno == EAGAIN))
-            continue;
-        break;
-    }
-    return rbytes;
-}
 
 /*******************************************************************************************
  * CLIENT
@@ -91,25 +43,22 @@ int SocketClient::__openConnection(std::string ip, int port) {
 }
 
 SocketClient::SocketClient(int fd, std::string ip) : m_client_fd(fd), m_client_ip(ip) {
-    LOG(trace) << "SocketClient() c'tor";
 }
 
 SocketClient::~SocketClient() {
-    LOG(trace) << "~SocketClient() d'tor";
     if (m_client_fd > 0)
         close(m_client_fd);
     m_client_fd = -1;
 }
 
 bool SocketClient::OnReadingAvailable() {
-    LOG(trace) << "OnReadingAvailable()";
     uint8_t tmp_buf[4096];
     int rbytes = __robust_recv(m_client_fd, tmp_buf, 4096);
     if (rbytes <= 0) {
         LOG(info) << "Client " << m_client_ip << " (fd " << m_client_fd << ") closed the cnnection";
         return false;
     } else {
-        m_read_buffer.insert(std::end(m_read_buffer), &tmp_buf[0], &tmp_buf[rbytes]);
+        m_read_buffer.insert(std::end(m_read_buffer), tmp_buf, tmp_buf + rbytes);
         if (m_read_buffer.size() >= 4) {
             size_t payload_size =
                 ((((size_t)m_read_buffer[0]) & 0xFF)      ) |
@@ -145,7 +94,6 @@ bool SocketClient::OnReadingAvailable() {
 }
 
 bool SocketClient::OnWritingAvailable() {
-    LOG(trace) << "OnWritingAvailable()";
     m_write_buffer_mutex.lock();
     std::vector<uint8_t> staging_buffer (m_write_buffer);
     m_write_buffer_mutex.unlock();
@@ -171,7 +119,7 @@ void SocketClient::Write(json msg) {
     m_write_buffer.push_back((uint8_t)((payload_size >> 8 ) & 0xFF));
     m_write_buffer.push_back((uint8_t)((payload_size >> 16) & 0xFF));
     m_write_buffer.push_back((uint8_t)((payload_size >> 24) & 0xFF));
-    m_write_buffer.insert(std::end(m_write_buffer), &cstr[0], &cstr[payload_size]);
+    m_write_buffer.insert(std::end(m_write_buffer), cstr, cstr + payload_size);
     m_write_buffer_mutex.unlock();
 
     LOG(trace) << "Sent message from " << m_client_ip << ": " << msg;
@@ -194,15 +142,7 @@ std::unordered_map<int, SocketClientPtr> SocketCluster::m_clients;
 std::unordered_map<std::string, SocketClientPtr> SocketCluster::m_clients_by_ip;
 std::thread SocketCluster::m_server_thread;
 
-std::string read_ip(struct sockaddr_in address) {
-    struct sockaddr_in* pV4Addr = (struct sockaddr_in*)&address;
-    struct in_addr ipAddr = pV4Addr->sin_addr;
-    char str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &ipAddr, str, INET_ADDRSTRLEN);
-    return std::string(str);
-}
-
-void SocketCluster::__thread_entry(int max_connections) {
+void SocketCluster::__thread_entry() {
     while (m_is_alive) {
         fd_set read_fds, write_fds;
         FD_ZERO(&read_fds);
@@ -256,7 +196,7 @@ void SocketCluster::__thread_entry(int max_connections) {
             LOG(warning) << "Select failed: " << ret << " (errno=" << errno << ")";
     }
 
-    LOG(info) << "SocketCluster thread exiting";
+    LOG(info) << "SocketCluster thread shutting down...";
 }
 
 void SocketCluster::RegisterClient(SocketClientPtr client) {
@@ -282,7 +222,6 @@ void SocketCluster::DeregisterClient(SocketClientPtr client) {
 }
 
 int SocketCluster::Initialize() {
-    int max_clients = ConfigManager::get<int>("max-socket-clients");
     m_is_alive = true;
 
     int pipe_ends[2];
@@ -291,7 +230,9 @@ int SocketCluster::Initialize() {
     m_event_pipe_read_end = pipe_ends[0];
     m_event_pipe_write_end = pipe_ends[1];
 
-    m_server_thread = std::thread(SocketCluster::__thread_entry, max_clients + 1);
+    m_server_thread = std::thread(SocketCluster::__thread_entry);
+
+    LOG(info) << "SocketCluster ready";
 
     return 0;
 }
@@ -316,6 +257,8 @@ void SocketCluster::Cleanup() {
         close(m_event_pipe_write_end);
 
     m_event_pipe_read_end = m_event_pipe_write_end = -1;
+
+    LOG(info) << "SocketCluster shut down";
 }
 
 void SocketCluster::Notify() {
