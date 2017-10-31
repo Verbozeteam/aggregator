@@ -10,10 +10,12 @@ std::thread ClientManager::m_manager_thread;
 
 void ClientManager::__onDeviceDiscovered(std::string interface, std::string name, std::string ip, int type, std::string data) {
     // If the middleware on that IP is not registered, attempt to register it
-    if (!SocketCluster::IsClientRegistered(ip)) {
-        SocketClientPtr sc = SocketClient::Create<AggregatorClient> (ip, MIDDLEWARE_PORT);
-        if (sc)
-            sc->Write("{\"code\": 0}"_json);
+    if (type == 3) { // type 3 is a room
+        if (!SocketCluster::IsClientRegistered(ip)) {
+            SocketClientPtr sc = SocketClient::Create<AggregatorClient> (ip, MIDDLEWARE_PORT);
+            if (sc)
+                sc->Write("{\"code\": 0}"_json);
+        }
     }
 }
 
