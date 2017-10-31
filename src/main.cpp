@@ -24,22 +24,6 @@ int main(int argc, char* argv[]) {
     if (ClientManager::Initialize() != 0)
         return -5;
 
-    // SocketClientPtr sc = SocketClient::Create<AggregatorClient> ("10.11.28.41", 4567);
-    // if (sc)
-    //     sc->Write("{\"code\": 0}"_json);
-    // sleep(2);
-    // SocketCluster::DeregisterClient(sc);
-    // sc.reset();
-    // SocketCluster::Kill();
-
-    class Kaboom : public DiscoveryCallback {
-    public:
-        void OnDeviceDiscovered(std::string interface, std::string ip, std::string name, int type, std::string data) {
-            LOG(trace) << ip << " " << name << " " << type << " " << data;
-        }
-    } kaboom;
-    DiscoveryProtocol::InitiateDiscovery(&kaboom);
-
     SocketCluster::WaitForCompletion();
 
     ClientManager::Cleanup();

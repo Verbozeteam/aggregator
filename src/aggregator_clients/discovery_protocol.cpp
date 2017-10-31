@@ -15,7 +15,7 @@ const uint8_t DISCOVERY_MAGIC[2] = {0x29, 0xad};
 
 std::vector<std::string> DiscoveryProtocol::m_broadcast_interfaces;
 std::unordered_map<std::string, DiscoveryProtocol::NetworkInterface> DiscoveryProtocol::m_interface_map;
-DiscoveryCallback* DiscoveryProtocol::m_callback;
+DiscoveryCallback DiscoveryProtocol::m_callback;
 std::thread DiscoveryProtocol::m_listener_thread;
 std::mutex DiscoveryProtocol::m_interfaces_lock;
 int DiscoveryProtocol::m_event_pipe_read_end = -1;
@@ -176,7 +176,7 @@ void DiscoveryProtocol::__discoveryThread() {
                                     name = name.substr(0, name.find(':'));
                                 }
                                 m_interfaces_lock.lock();
-                                m_callback->OnDeviceDiscovered(interfaces[i].name, name, ip, discovery_buf[2], data);
+                                m_callback(interfaces[i].name, name, ip, discovery_buf[2], data);
                                 m_interfaces_lock.unlock();
                             }
                         }
@@ -227,7 +227,7 @@ void DiscoveryProtocol::Cleanup() {
     LOG(info) << "Discovery protocol shut down";
 }
 
-void DiscoveryProtocol::InitiateDiscovery(DiscoveryCallback* callback) {
+void DiscoveryProtocol::InitiateDiscovery(DiscoveryCallback callback) {
     LOG(debug) << "Discovery request initiated";
     m_interfaces_lock.lock();
     m_callback = callback;

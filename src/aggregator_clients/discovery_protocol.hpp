@@ -15,13 +15,18 @@
 #define MAX_DISCOVERY_RESPONSE_BUFFER 512
 
 /**
- * This class must be derived to implement the callback method for device discovery
+ * A callback function that is invoked when a device is discovered. Params:
+ * - interface name
+ * - device name
+ * - device ip
+ * - device type
+ * - device data
  */
-class DiscoveryCallback {
-public:
-    virtual void OnDeviceDiscovered(std::string interface, std::string name, std::string ip, int type, std::string data) = 0;
-};
+typedef void (*DiscoveryCallback) (std::string, std::string, std::string, int, std::string);
 
+/**
+ * The DiscoveryProtocol provides a toolset to discover devices using the discovery ptorocol
+ */
 class DiscoveryProtocol {
     /**
      * Represents a network interface
@@ -60,7 +65,7 @@ class DiscoveryProtocol {
         /** Sends a broadcast on the socket */
         void send_broadcast();
         /** Appends bytes to the read buffer and attempts to parse the commands */
-        void onRead(char* buf, size_t buflen, DiscoveryCallback* cb);
+        void onRead(char* buf, size_t buflen, DiscoveryCallback cb);
     };
 
     /**
@@ -78,7 +83,7 @@ class DiscoveryProtocol {
     /** interface name -> interface info map (currently found on system) */
     static std::unordered_map<std::string, DiscoveryProtocol::NetworkInterface> m_interface_map;
     /** Currently registered callback for device discovery */
-    static DiscoveryCallback* m_callback;
+    static DiscoveryCallback m_callback;
     /** A thread handle for the worker thread that broadcasts and listens */
     static std::thread m_listener_thread;
     /** A lock for m_interface_map and m_callback access */
@@ -142,5 +147,5 @@ public:
      * @param callback A DiscoveryCallback object that will receive the discovery
      *                 responses via OnDeviceDiscovered()
      */
-    static void InitiateDiscovery(DiscoveryCallback* callback);
+    static void InitiateDiscovery(DiscoveryCallback callback);
 };
