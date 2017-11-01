@@ -23,7 +23,8 @@ int VerbozeAPI::Initialize() {
     // return 0;
 
     try {
-        m_permenanat_client.connect(U("ws://localhost:1234")).wait();
+        std::string url = ConfigManager::get<std::string>("websocket-url");
+        m_permenanat_client.connect(U(url)).wait();
     } catch (...) {
         LOG(fatal) << "Failed to connect websocket to server";
         return -1;
