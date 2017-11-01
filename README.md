@@ -16,5 +16,11 @@ To install [JSON for modern C++](https://github.com/nlohmann/json):
     brew install nlohmann_json
 ```
 
+### C++ Rest Framework (Casablanca)
+Follow the instructions [here](https://github.com/Microsoft/cpprestsdk). For mac just
+```
+    brew install cpprestsdk
+```
+
 # Bugs
 - Discovery protocol will only discover a device if it reads the entire discovery packet in 1 recvfrom.
