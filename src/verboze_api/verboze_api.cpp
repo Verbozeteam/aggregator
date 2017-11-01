@@ -11,6 +11,7 @@ using namespace web::http::client;
 using namespace concurrency::streams;
 
 websocket_callback_client VerbozeAPI::m_permenanat_client;
+CommandCallback VerbozeAPI::m_command_callback = nullptr;
 
 int VerbozeAPI::Initialize() {
     // http_client client(U("http://www.rimads.io/api-v1/countries/"));
@@ -33,34 +34,43 @@ int VerbozeAPI::Initialize() {
     try {
         // set receive handler
         m_permenanat_client.set_message_handler([](websocket_incoming_message msg) {
-            std::string s = msg.extract_string().get();
-            LOG(trace) << "Got message: " << s;
+            std::string smsg = msg.extract_string().get();
+            json jmsg = json::parse(smsg);
+            if (!jmsg.is_null()) {
+                LOG(trace) << "Got command: " << jmsg;
+                if (m_command_callback)
+                    m_command_callback(jmsg);
+            } else
+                LOG(error) << "Got invalid JSON from websocket: " << smsg;
         });
     } catch (...) {
         LOG(fatal) << "Failed to set message handler";
         return -2;
     }
 
-    try {
-        websocket_outgoing_message msg;
-        msg.set_utf8_message("I am a UTF-8 string! (Or close enough...)");
-        m_permenanat_client.send(msg); // NEED NU2 WAIT!
-    } catch (...) {
-        LOG(fatal) << "Failed to send message";
-        return -3;
-    }
-
     LOG(info) << "Verboze API initialized";
-
-    while (1);
 
     return 0;
 }
 
 void VerbozeAPI::Cleanup() {
-
+    try {
+        m_permenanat_client.close().wait();
+    } catch (...) {
+        LOG(error) << "Failed to close connection to websocket";
+    }
 }
 
-void VerbozeAPI::SendCommand() {
+void VerbozeAPI::SendCommand(json command) {
+    try {
+        websocket_outgoing_message msg;
+        msg.set_utf8_message(command.dump());
+        m_permenanat_client.send(msg); // NEED NU2 WAIT!
+    } catch (...) {
+        LOG(fatal) << "Failed to send message";
+    }
+}
 
+void VerbozeAPI::SetCommandCallback(CommandCallback callback) {
+    m_command_callback = callback;
 }

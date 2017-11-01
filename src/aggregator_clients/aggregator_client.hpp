@@ -2,6 +2,9 @@
 
 #include "socket_cluster/socket_cluster.hpp"
 
+#include <json.hpp>
+using json = nlohmann::json;
+
 /**
  * The AggregatorClient extends SocketClient to add:
  * - Caching Thing states
@@ -10,6 +13,9 @@
  */
 class AggregatorClient : public SocketClient {
     friend class SocketClient;
+
+    /** Cache of the state of the client */
+    json m_cache;
 
 protected:
     AggregatorClient(int fd, std::string ip);
