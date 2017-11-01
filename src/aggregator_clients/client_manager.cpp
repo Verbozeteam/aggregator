@@ -3,6 +3,7 @@
 #include "aggregator_clients/aggregator_client.hpp"
 #include "aggregator_clients/discovery_protocol.hpp"
 #include "socket_cluster/socket_cluster.hpp"
+#include "verboze_api/verboze_api.hpp"
 #include "utilities/time_utilities.hpp"
 
 bool ClientManager::m_is_alive = true;
@@ -16,6 +17,21 @@ void ClientManager::__onDeviceDiscovered(std::string interface, std::string name
             if (sc)
                 sc->Write("{\"code\": 0}"_json);
         }
+    }
+}
+
+void ClientManager::__onCommandFromVerboze(json command) {
+    /** @TODO: DISPATCH THE COMMAND TO THE APPROPRIATE CLIENT */
+    std::string room_name = "";
+    auto command_it = command.find("__room_name");
+    if (command_it != command.end())
+        room_name = command_it.value();
+
+    std::vector<SocketClientPtr> all_clients = SocketCluster::GetClientsList();
+    for (auto it : all_clients) {
+        AggregatorClient* cl = (AggregatorClient*)(it.get());
+        if (cl->HasRoom(room_name))
+            cl->Write(command);
     }
 }
 
@@ -49,10 +65,13 @@ void ClientManager::__threadEntry() {
     }
 }
 
+
 int ClientManager::Initialize() {
     m_is_alive = true;
 
     m_manager_thread = std::thread(__threadEntry);
+
+    VerbozeAPI::SetCommandCallback(__onCommandFromVerboze);
 
     return 0;
 }

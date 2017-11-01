@@ -3,6 +3,9 @@
 #include <string>
 #include <thread>
 
+#include <json.hpp>
+using json = nlohmann::json;
+
 /** Port that the middleware uses */
 #define MIDDLEWARE_PORT 4567
 /** Period for discovery requests */
@@ -25,6 +28,12 @@ class ClientManager {
      * @param data      Data of the device
      */
     static void __onDeviceDiscovered(std::string interface, std::string name, std::string ip, int type, std::string data);
+
+    /**
+     * Callback called by the VerbozeAPI when a command is sent
+     * @param command The JSON command
+     */
+    static void __onCommandFromVerboze(json command);
 
     /**
      * Thread entry point
