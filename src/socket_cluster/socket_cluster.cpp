@@ -126,7 +126,7 @@ void SocketClient::Write(json msg) {
 
     SocketCluster::Notify();
 
-    LOG(trace) << "Sent message from " << m_client_ip << ": " << msg;
+    LOG(trace) << "Sent message to " << m_client_ip << ": " << msg;
 }
 
 bool SocketClient::OnMessage(json msg) {

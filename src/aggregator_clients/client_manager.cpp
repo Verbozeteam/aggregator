@@ -24,8 +24,10 @@ void ClientManager::__onCommandFromVerboze(json command) {
     /** @TODO: DISPATCH THE COMMAND TO THE APPROPRIATE CLIENT */
     std::string room_name = "";
     auto command_it = command.find("__room_name");
-    if (command_it != command.end())
+    if (command_it != command.end()) {
         room_name = command_it.value();
+        command.erase("__room_name");
+    }
 
     std::vector<SocketClientPtr> all_clients = SocketCluster::GetClientsList();
     for (auto it : all_clients) {
