@@ -17,17 +17,14 @@ websocket_callback_client VerbozeAPI::m_permenanat_client;
 CommandCallback VerbozeAPI::m_command_callback = nullptr;
 
 int VerbozeAPI::__reconnect(int num_attempts) {
-    for (unsigned int i = 0; i < (unsigned int)num_attempts; i++) {
-        try {
-            m_permenanat_client.connect(U(m_connection_url)).wait();
-            LOG(warning) << "Websocket connected";
-            return 0;
-        } catch (...) {
-            sleep(1);
-        }
+
+    try {
+        m_permenanat_client.connect(U(m_connection_url)).wait();
+    } catch (...) {
+        return -1;
     }
 
-    return -1;
+    return 0;
 }
 
 int VerbozeAPI::Initialize() {
@@ -59,18 +56,16 @@ int VerbozeAPI::Initialize() {
             } else
                 LOG(error) << "Got invalid JSON from websocket: " << smsg;
         });
-    } catch (...) {
-        LOG(fatal) << "Failed to set websocket message handler";
-        return -2;
-    }
 
-    try {
+        // set close handler
         m_permenanat_client.set_close_handler([](websocket_close_status close_status, const utility::string_t &reason, const std::error_code &error) {
-            LOG(warning) << "Websocket connection dropped";
-            VerbozeAPI::__reconnect(-1); // infinite attempts
+            LOG(warning) << "Websocket connection dropped: [status=" << (int)close_status << "] reason: " << reason << " (code " << error << ")";
+            sleep(3);
+            VerbozeAPI::__reconnect(1);
         });
     } catch (...) {
-        LOG(fatal) << "Failed to set the websocket close handler";
+        LOG(fatal) << "Failed to set websocket handlers";
+        return -2;
     }
 
     LOG(info) << "Verboze API initialized";
