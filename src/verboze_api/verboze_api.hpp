@@ -20,13 +20,20 @@ class VerbozeAPI {
     static websocket_callback_client m_permenanat_client;
     /** Callback to be called when a message arrives from the websocket */
     static CommandCallback m_command_callback;
+    /** Whether or not the connection with the websocket has ever been up */
+    static bool m_websocket_connected;
 
     /**
      * Attempts to connect the websocket to m_connection_url
-     * @param  num_attempts Maximum number of attempts (-ve is infinite)
      * @return              0 on successfull connection, negative otherwise
      */
-    static int __reconnect(int num_attempts);
+    static int __reconnect();
+
+    /**
+     * Entry point for a thread that will run for as long as the connection to the
+     * websocket hasn't been initiated
+     */
+    static void __first_connection_thread();
 
 public:
     /**
