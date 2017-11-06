@@ -6,10 +6,7 @@ import struct
 import argparse
 from multiprocessing import Pool
 
-def f(x):
-    return x*x
-
-parser = argparse.ArgumentParser(description='Middleware core')
+parser = argparse.ArgumentParser(description='Concurrency tester')
 parser.add_argument("-n", "--num_middlewares", required=False, default=100, type=int, help="Number of middlewares to emulate")
 cmd_args = parser.parse_args()
 

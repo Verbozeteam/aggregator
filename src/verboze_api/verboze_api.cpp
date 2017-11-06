@@ -29,9 +29,12 @@ void VerbozeAPI::__first_connection_thread() {
                 // set receive handler
                 m_permenanat_client.set_message_handler([](websocket_incoming_message msg) {
                     std::string smsg = msg.extract_string().get();
-                    json jmsg = json::parse(smsg);
+                    json jmsg;
+                    try {
+                        jmsg = json::parse(smsg);
+                    } catch (...) {}
                     if (!jmsg.is_null()) {
-                        LOG(trace) << "Got command: " << jmsg;
+                        LOG(trace) << "Got command from websocket: " << jmsg;
                         if (m_command_callback)
                             m_command_callback(jmsg);
                     } else

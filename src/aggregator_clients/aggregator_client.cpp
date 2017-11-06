@@ -27,7 +27,7 @@ bool __merge_json(json* base, json new_data) {
                 replace_entry = true;
 
             if (replace_entry) {
-                base->emplace(key, val);
+                (*base)[key] = val;
                 is_changed = true;
             }
         }
