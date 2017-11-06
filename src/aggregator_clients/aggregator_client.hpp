@@ -25,7 +25,7 @@ class AggregatorClient : public SocketClient {
     std::vector<std::string> m_room_names;
 
 protected:
-    AggregatorClient(int fd, std::string ip);
+    AggregatorClient(int fd, std::string ip, int port);
 
 public:
 

@@ -171,12 +171,21 @@ void DiscoveryProtocol::__discoveryThread() {
                                 std::string ip = __read_ip(sender_addr);
                                 std::string name = std::string(&discovery_buf[4]);
                                 std::string data = "";
+                                std::string port = std::to_string(MIDDLEWARE_DEFAULT_PORT);
                                 if (name.find(":") != std::string::npos) {
-                                    data = name.substr(name.find(':') + 1);
+                                    port = name.substr(name.find(':') + 1);
                                     name = name.substr(0, name.find(':'));
+                                    if (port.find(":") != std::string::npos) {
+                                        data = port.substr(port.find(':') + 1);
+                                        port = port.substr(0, port.find(':'));
+                                    }
                                 }
+                                int iport = MIDDLEWARE_DEFAULT_PORT;
+                                try {
+                                    iport = std::stoi(port);
+                                } catch(...) {}
                                 m_interfaces_lock.lock();
-                                m_callback(interfaces[i].name, name, ip, discovery_buf[2], data);
+                                m_callback(interfaces[i].name, name, ip, iport, discovery_buf[2], data);
                                 m_interfaces_lock.unlock();
                             }
                         }

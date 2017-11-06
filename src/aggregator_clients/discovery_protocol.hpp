@@ -11,6 +11,9 @@
 /** Port on which the broadcasting protocol runs */
 #define BROADCAST_PORT 7991
 
+/** Default port for the middleware */
+#define MIDDLEWARE_DEFAULT_PORT 7990
+
 /** Maximum length of a discovery response */
 #define MAX_DISCOVERY_RESPONSE_BUFFER 512
 
@@ -22,7 +25,7 @@
  * - device type
  * - device data
  */
-typedef void (*DiscoveryCallback) (std::string, std::string, std::string, int, std::string);
+typedef void (*DiscoveryCallback) (std::string, std::string, std::string, int, int, std::string);
 
 /**
  * The DiscoveryProtocol provides a toolset to discover devices using the discovery ptorocol

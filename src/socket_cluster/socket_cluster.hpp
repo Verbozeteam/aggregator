@@ -38,8 +38,8 @@ class SocketCluster {
     static std::shared_timed_mutex m_clients_mutex;
     /** fd -> SocketClientPtr map */
     static std::unordered_map<int, SocketClientPtr> m_clients;
-    /** ip -> SocketClientPtr map (same SocketClient* as above) */
-    static std::unordered_map<std::string, SocketClientPtr> m_clients_by_ip;
+    /** identifier -> SocketClientPtr map (same SocketClient* as above) */
+    static std::unordered_map<std::string, SocketClientPtr> m_clients_by_id;
     /** thread running the select loop */
     static std::thread m_server_thread;
 
@@ -88,18 +88,18 @@ public:
     static void DeregisterClient(SocketClientPtr client);
 
     /**
-     * Returns whether or not a client with the given IP is registered
-     * @param  ip IP to check against
-     * @return    true iff a client is registered with the given IP
+     * Returns whether or not a client with the given ID is registered
+     * @param  id ID to check against
+     * @return    true iff a client is registered with the given ID
      */
     static bool IsClientRegistered(std::string ip);
 
     /**
-     * Retrieves a registered client by its IP
-     * @param  ip IP of the client
-     * @return    registered client (nullptr if no client with the given IP is registered)
+     * Retrieves a registered client by its ID
+     * @param  id ID of the client
+     * @return    registered client (nullptr if no client with the given ID is registered)
      */
-    static SocketClientPtr GetClient(std::string ip);
+    static SocketClientPtr GetClient(std::string id);
 
     /**
      * @return  a list of clients registered
@@ -147,9 +147,11 @@ protected:
     /**
      * Initializes variables
      */
-    SocketClient(int fd, std::string ip);
+    SocketClient(int fd, std::string ip, int port);
 
-    std::string m_client_ip; // IP address of the client (x.x.x.x format)
+    std::string m_ip; // IP address of the client (x.x.x.x format)
+    int m_port; // Port of the client
+    std::string m_identifier; // IP:port string
 
 public:
     /**
@@ -163,7 +165,7 @@ public:
         int fd = __openConnection(ip, port);
         if (fd <= 0)
             return nullptr;
-        SocketClientPtr p = SocketClientPtr(new T(fd, ip));
+        SocketClientPtr p = SocketClientPtr(new T(fd, ip, port));
         SocketCluster::RegisterClient(p);
         return p;
     }

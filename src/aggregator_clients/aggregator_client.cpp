@@ -35,7 +35,7 @@ bool __merge_json(json* base, json new_data) {
     return is_changed;
 }
 
-AggregatorClient::AggregatorClient(int fd, std::string ip) : SocketClient(fd, ip) {
+AggregatorClient::AggregatorClient(int fd, std::string ip, int port) : SocketClient(fd, ip, port) {
 }
 
 void AggregatorClient::Write(json msg) {

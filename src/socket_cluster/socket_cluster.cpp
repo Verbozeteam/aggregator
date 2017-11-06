@@ -36,28 +36,27 @@ int SocketClient::__openConnection(std::string ip, int port) {
     /* Now connect to the server */
     if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         LOG(error) << "Failed to connect to (" << ip << ", " << port << ")";
-        return sockfd;
+        close(sockfd);
+        return -1;
     }
 
     return sockfd;
 }
 
-SocketClient::SocketClient(int fd, std::string ip) : m_client_fd(fd), m_client_ip(ip) {
+SocketClient::SocketClient(int fd, std::string ip, int port) : m_client_fd(fd), m_ip(ip), m_port(port), m_identifier(ip+":"+std::to_string(port)) {
 }
 
 SocketClient::~SocketClient() {
     if (m_client_fd > 0)
         close(m_client_fd);
     m_client_fd = -1;
-
-    LOG(error) << "BOOM BOOM BOOM CLIENT DESTRUCTOR " << m_client_ip << " " << m_client_fd;
 }
 
 bool SocketClient::OnReadingAvailable() {
     uint8_t tmp_buf[4096];
     int rbytes = __robust_recv(m_client_fd, tmp_buf, 4096);
     if (rbytes <= 0) {
-        LOG(info) << "Client " << m_client_ip << " (fd " << m_client_fd << ") closed the cnnection";
+        LOG(info) << "Client " << m_ip << " (fd " << m_client_fd << ") closed the cnnection";
         return false;
     } else {
         m_read_buffer.insert(std::end(m_read_buffer), tmp_buf, tmp_buf + rbytes);
@@ -81,11 +80,11 @@ bool SocketClient::OnReadingAvailable() {
                     if (j.is_null())
                         throw;
                 } catch (...) {
-                    LOG(warning) << "Client " << m_client_ip << " sent invalid JSON " << s;
+                    LOG(warning) << "Client " << m_ip << " sent invalid JSON " << s;
                 }
                 delete[] s;
                 if (j.is_null() || !OnMessage(j)) {
-                    LOG(warning) << "Client " << m_client_ip << " (fd " << m_client_fd << ") communication failure";
+                    LOG(warning) << "Client " << m_ip << " (fd " << m_client_fd << ") communication failure";
                     return false;
                 }
             }
@@ -101,7 +100,7 @@ bool SocketClient::OnWritingAvailable() {
     m_write_buffer_mutex.unlock();
     int wbytes = __robust_send(m_client_fd, &staging_buffer[0], staging_buffer.size());
     if (wbytes <= 0) {
-        LOG(warning) << "Failed to write to client " << m_client_ip << " (fd " << m_client_fd << ")";
+        LOG(warning) << "Failed to write to client " << m_ip << " (fd " << m_client_fd << ")";
         return false;
     } else {
         m_write_buffer_mutex.lock();
@@ -126,11 +125,11 @@ void SocketClient::Write(json msg) {
 
     SocketCluster::Notify();
 
-    LOG(trace) << "Sent message to " << m_client_ip << ": " << msg;
+    LOG(trace) << "Sent message to " << m_ip << ": " << msg;
 }
 
 bool SocketClient::OnMessage(json msg) {
-    LOG(trace) << "Received message from " << m_client_ip << ": " << msg;
+    LOG(trace) << "Received message from " << m_ip << ": " << msg;
     return true;
 }
 
@@ -143,7 +142,7 @@ int SocketCluster::m_event_pipe_read_end = -1;
 int SocketCluster::m_event_pipe_write_end = -1;
 std::shared_timed_mutex SocketCluster::m_clients_mutex;
 std::unordered_map<int, SocketClientPtr> SocketCluster::m_clients;
-std::unordered_map<std::string, SocketClientPtr> SocketCluster::m_clients_by_ip;
+std::unordered_map<std::string, SocketClientPtr> SocketCluster::m_clients_by_id;
 std::thread SocketCluster::m_server_thread;
 
 void SocketCluster::__thread_entry() {
@@ -201,9 +200,9 @@ void SocketCluster::__thread_entry() {
 
 void SocketCluster::RegisterClient(SocketClientPtr client) {
     m_clients_mutex.lock(); // write (exclusive) lock
-    LOG(info) << "Registering client " << client->m_client_ip << " (fd " << client->m_client_fd << ")";
+    LOG(info) << "Registering client " << client->m_ip << " (fd " << client->m_client_fd << ")";
     m_clients.insert(std::pair<int, SocketClientPtr>(client->m_client_fd, client));
-    m_clients_by_ip.insert(std::pair<std::string, SocketClientPtr>(client->m_client_ip, client));
+    m_clients_by_id.insert(std::pair<std::string, SocketClientPtr>(client->m_identifier, client));
     m_clients_mutex.unlock();
 
     Notify();
@@ -211,10 +210,10 @@ void SocketCluster::RegisterClient(SocketClientPtr client) {
 
 void SocketCluster::DeregisterClient(SocketClientPtr client) {
     m_clients_mutex.lock(); // write (exclusive) lock
-    LOG(info) << "Deregistering client " << client->m_client_ip << " (fd " << client->m_client_fd << ")";
+    LOG(info) << "Deregistering client " << client->m_ip << " (fd " << client->m_client_fd << ")";
     if (m_clients.find(client->m_client_fd) != m_clients.end()) {
         m_clients.erase(client->m_client_fd);
-        m_clients_by_ip.erase(client->m_client_ip);
+        m_clients_by_id.erase(client->m_identifier);
     }
     m_clients_mutex.unlock();
 
@@ -248,7 +247,7 @@ void SocketCluster::Cleanup() {
 
     m_clients_mutex.lock(); // write (exclusive) lock
     m_clients.clear();
-    m_clients_by_ip.clear();
+    m_clients_by_id.clear();
     m_clients_mutex.unlock();
 
     if (m_event_pipe_read_end > 0)
@@ -271,18 +270,18 @@ void SocketCluster::Kill() {
     Notify();
 }
 
-bool SocketCluster::IsClientRegistered(std::string ip) {
+bool SocketCluster::IsClientRegistered(std::string id) {
     m_clients_mutex.lock_shared(); // read lock
-    bool ret = m_clients_by_ip.find(ip) != m_clients_by_ip.end();
+    bool ret = m_clients_by_id.find(id) != m_clients_by_id.end();
     m_clients_mutex.unlock_shared();
     return ret;
 }
 
-SocketClientPtr SocketCluster::GetClient(std::string ip) {
+SocketClientPtr SocketCluster::GetClient(std::string id) {
     m_clients_mutex.lock_shared(); // read lock
-    auto it = m_clients_by_ip.find(ip);
+    auto it = m_clients_by_id.find(id);
     m_clients_mutex.unlock_shared();
-    return it == m_clients_by_ip.end() ? nullptr : it->second;
+    return it == m_clients_by_id.end() ? nullptr : it->second;
 }
 
 std::vector<SocketClientPtr> SocketCluster::GetClientsList() {
