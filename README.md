@@ -23,4 +23,4 @@ Follow the instructions [here](https://github.com/Microsoft/cpprestsdk). For mac
 ```
 
 # Bugs
-- Discovery protocol will only discover a device if it reads the entire discovery packet in 1 recvfrom.
+- I don't know

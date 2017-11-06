@@ -120,7 +120,9 @@ void DiscoveryProtocol::__discoverInterfaces() {
 void DiscoveryProtocol::__discoveryThread() {
     bool is_running = true;
     std::vector<DiscoveryProtocol::NetworkInterface> interfaces;
-    char discovery_buf[MAX_DISCOVERY_RESPONSE_BUFFER];
+
+    uint8_t tmp_buf[256];
+    std::unordered_map<int, std::vector<uint8_t>> discovery_buffers; // broadcast_socket fd -> buffer
 
     while (is_running) {
         fd_set read_fds;
@@ -137,9 +139,7 @@ void DiscoveryProtocol::__discoveryThread() {
         int ret = select(maxfd + 1, &read_fds, NULL, NULL, NULL);
         if (ret > 0) {
             if (FD_ISSET(m_event_pipe_read_end, &read_fds)) {
-                // clear all (128 is a magic number, put anything...)
-                uint8_t tmp_buf[128];
-                int nread = __robust_read(m_event_pipe_read_end, tmp_buf, 128);
+                int nread = __robust_read(m_event_pipe_read_end, tmp_buf, sizeof(tmp_buf));
                 if (nread < 0) {
                     LOG(fatal) << "DiscoveryProtocol thread failed to read from the event pipe";
                     break;
@@ -151,11 +151,13 @@ void DiscoveryProtocol::__discoveryThread() {
                         is_running = false;
                 }
                 if (is_running) {
+                    discovery_buffers.clear();
                     interfaces.clear();
                     m_interfaces_lock.lock();
                     for (auto it = m_interface_map.begin(); it != m_interface_map.end(); it++) {
                         it->second.send_broadcast();
                         interfaces.push_back(it->second);
+                        discovery_buffers.insert(std::pair<int, std::vector<uint8_t>>(it->second.broadcast_socket, std::vector<uint8_t>()));
                     }
                     m_interfaces_lock.unlock();
                 }
@@ -164,30 +166,50 @@ void DiscoveryProtocol::__discoveryThread() {
                     if (FD_ISSET(interfaces[i].broadcast_socket, &read_fds)) {
                         struct sockaddr_in sender_addr;
                         socklen_t addr_size = sizeof(sender_addr);
-                        int nread = __robust_recvfrom(interfaces[i].broadcast_socket, (uint8_t*)discovery_buf, MAX_DISCOVERY_RESPONSE_BUFFER - 1, 0, (struct sockaddr*)&sender_addr, &addr_size);
-                        if (nread >= 4 && nread >= discovery_buf[3] + 4) {
-                            discovery_buf[nread] = 0;
-                            if (m_callback) {
-                                std::string ip = __read_ip(sender_addr);
-                                std::string name = std::string(&discovery_buf[4]);
-                                std::string data = "";
-                                std::string port = std::to_string(MIDDLEWARE_DEFAULT_PORT);
-                                if (name.find(":") != std::string::npos) {
-                                    port = name.substr(name.find(':') + 1);
-                                    name = name.substr(0, name.find(':'));
-                                    if (port.find(":") != std::string::npos) {
-                                        data = port.substr(port.find(':') + 1);
-                                        port = port.substr(0, port.find(':'));
+                        std::vector<uint8_t>* sock_buffer = &discovery_buffers.find(interfaces[i].broadcast_socket)->second;
+                        int nread = __robust_recvfrom(interfaces[i].broadcast_socket, tmp_buf, sizeof(tmp_buf), 0, (struct sockaddr*)&sender_addr, &addr_size);
+                        for (int j = 0; j < nread; j++)
+                            sock_buffer->push_back(tmp_buf[j]);
+                        while (sock_buffer->size() >= 4) {
+                            uint8_t* raw_buffer = &(*sock_buffer)[0];
+                            uint8_t magic_1 = raw_buffer[0];
+                            uint8_t magic_2 = raw_buffer[1];
+                            uint8_t type    = raw_buffer[2];
+                            uint8_t msglen  = raw_buffer[3];
+                            if (magic_1 == DISCOVERY_MAGIC[0] && magic_2 == DISCOVERY_MAGIC[1]) {
+                                if (sock_buffer->size() >= 4 + msglen) {
+                                    char* tmp = new char[msglen+1];
+                                    memcpy(tmp, raw_buffer+4, msglen);
+                                    tmp[msglen] = 0;
+                                    for (int j = 0; j < 4 + msglen; j++)
+                                        sock_buffer->erase(sock_buffer->begin());
+                                    std::string name = std::string(tmp);
+                                    delete[] tmp;
+
+                                    if (m_callback) {
+                                        std::string ip = __read_ip(sender_addr);
+                                        std::string data = "";
+                                        std::string port = std::to_string(MIDDLEWARE_DEFAULT_PORT);
+                                        if (name.find(":") != std::string::npos) {
+                                            port = name.substr(name.find(':') + 1);
+                                            name = name.substr(0, name.find(':'));
+                                            if (port.find(":") != std::string::npos) {
+                                                data = port.substr(port.find(':') + 1);
+                                                port = port.substr(0, port.find(':'));
+                                            }
+                                        }
+                                        int iport = MIDDLEWARE_DEFAULT_PORT;
+                                        try {
+                                            iport = std::stoi(port);
+                                        } catch(...) {}
+                                        m_interfaces_lock.lock();
+                                        m_callback(interfaces[i].name, name, ip, iport, type, data);
+                                        m_interfaces_lock.unlock();
                                     }
-                                }
-                                int iport = MIDDLEWARE_DEFAULT_PORT;
-                                try {
-                                    iport = std::stoi(port);
-                                } catch(...) {}
-                                m_interfaces_lock.lock();
-                                m_callback(interfaces[i].name, name, ip, iport, discovery_buf[2], data);
-                                m_interfaces_lock.unlock();
-                            }
+                                } else
+                                    break; // need more bytes
+                            } else
+                                sock_buffer->erase(sock_buffer->begin());
                         }
                     }
                 }

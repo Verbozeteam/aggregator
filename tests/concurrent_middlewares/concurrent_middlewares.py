@@ -1,6 +1,7 @@
 import threading
+import os
 
-NUM_MIDDLEWARES = 300
+NUM_MIDDLEWARES = 10
 
 def middleware():
     return
