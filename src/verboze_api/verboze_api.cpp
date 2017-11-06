@@ -108,9 +108,9 @@ void VerbozeAPI::SendCommand(json command) {
     try {
         websocket_outgoing_message msg;
         msg.set_utf8_message(command.dump());
-        m_permenanat_client.send(msg); // NEED NU2 WAIT!
+        m_permenanat_client.send(msg).wait(); // NEED NU2 WAIT!
     } catch (...) {
-        LOG(fatal) << "Failed to send message";
+        LOG(fatal) << "Failed to send websocket message";
     }
 }
 
