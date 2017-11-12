@@ -21,7 +21,6 @@ void ClientManager::__onDeviceDiscovered(std::string interface, std::string name
 }
 
 void ClientManager::__onCommandFromVerboze(json command) {
-    /** @TODO: DISPATCH THE COMMAND TO THE APPROPRIATE CLIENT */
     std::string room_name = "";
     auto command_it = command.find("__room_name");
     if (command_it != command.end()) {
