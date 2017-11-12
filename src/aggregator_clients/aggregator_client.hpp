@@ -45,4 +45,16 @@ public:
      * @return      whether or not a room with the given name exists on this client
      */
     bool HasRoom(std::string name);
+
+    /**
+     * Retrieves the names that this client represents
+     * @return List of names that this client represents
+     */
+    std::vector<std::string> GetNames() const;
+
+    /**
+     * Retrieves the cache of this client
+     * @return Cache of the client
+     */
+    json GetCache(std::string key = "") const;
 };

@@ -48,6 +48,9 @@ void AggregatorClient::Write(json msg) {
 bool AggregatorClient::OnMessage(json msg) {
     SocketClient::OnMessage(msg);
 
+    if (msg.find("thing") != msg.end()) // don't react to control messages (should never happen...)
+        return true;
+
     /** Perform caching */
     bool changed_state = __merge_json(&m_cache, msg);
 
@@ -83,4 +86,19 @@ bool AggregatorClient::HasRoom(std::string name) {
         if (*it == name)
             return true;
     return false;
+}
+
+std::vector<std::string> AggregatorClient::GetNames() const {
+    return m_room_names;
+}
+
+json AggregatorClient::GetCache(std::string key) const {
+    if (key == "")
+        return m_cache;
+    else {
+        auto it = m_cache.find(key);
+        if (it != m_cache.end())
+            return it.value();
+        return json();
+    }
 }

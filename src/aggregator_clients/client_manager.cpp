@@ -1,6 +1,5 @@
 #include "logging/logging.hpp"
 #include "aggregator_clients/client_manager.hpp"
-#include "aggregator_clients/aggregator_client.hpp"
 #include "aggregator_clients/discovery_protocol.hpp"
 #include "socket_cluster/socket_cluster.hpp"
 #include "verboze_api/verboze_api.hpp"
@@ -20,22 +19,59 @@ void ClientManager::__onDeviceDiscovered(std::string interface, std::string name
     }
 }
 
-void ClientManager::__onCommandFromVerboze(json command) {
-    if (command.find("thing") == command.end())
-        return; // do not process any message unless its a state update
+void ClientManager::__onControlCommandFromVerboze(json command, int code, AggregatorClient* target_room) {
+    switch (code) {
+        case CONTROL_CODE_GET_BLUEPRINT: {
+            VerbozeAPI::SendCommand(target_room->GetCache());
+            break;
+        } case CONTROL_CODE_GET_THING_STATE: {
+            if (command.find("thing-id") != command.end()) {
+                std::string thing_id = command["thing-id"];
+                json thing_state = target_room->GetCache(thing_id);
+                if (!thing_state.is_null()) {
+                    thing_state["thing"] = thing_id;
+                    thing_state["__room_names"] = target_room->GetNames();
+                    VerbozeAPI::SendCommand(thing_state);
+                }
+            }
+            break;
+        } case CONTROL_CODE_SET_LISTENERS: {
+            /** CANNOT BE IMPLEMENTED HERE! (Verboze listens to all) */
+            break;
+        }
+    }
+}
 
-    std::string room_name = "";
+void ClientManager::__onCommandFromVerboze(json command) {
     auto command_it = command.find("__room_name");
     if (command_it != command.end()) {
-        room_name = command_it.value();
+        std::string room_name = command_it.value();
         command.erase("__room_name");
-    }
 
-    std::vector<SocketClientPtr> all_clients = SocketCluster::GetClientsList();
-    for (auto it : all_clients) {
-        AggregatorClient* cl = (AggregatorClient*)(it.get());
-        if (cl->HasRoom(room_name))
-            cl->Write(command);
+        AggregatorClient* target_room = nullptr;
+        std::vector<SocketClientPtr> all_clients = SocketCluster::GetClientsList();
+        for (auto it : all_clients) {
+            AggregatorClient* cl = (AggregatorClient*)(it.get());
+            if (cl->HasRoom(room_name)) {
+                target_room = cl;
+                break;
+            }
+        }
+
+        if (target_room) {
+            if (command.find("thing") == command.end()) {
+                // control command
+                auto code_iter = command.find("code");
+                if (code_iter != command.end()) {
+                    int code = code_iter.value();
+                    __onControlCommandFromVerboze(command, code, target_room);
+                }
+                return;
+            } else {
+                // state update
+                target_room->Write(command);
+            }
+        }
     }
 }
 

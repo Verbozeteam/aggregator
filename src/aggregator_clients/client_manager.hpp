@@ -1,5 +1,7 @@
 #pragma once
 
+#include "aggregator_clients/aggregator_client.hpp"
+
 #include <string>
 #include <thread>
 
@@ -10,6 +12,11 @@ using json = nlohmann::json;
 #define DISCOVERY_PERIOD 10000
 /** Period for heartbeats */
 #define HEARTBEAT_PERIOD 8000
+
+/** Control codes */
+#define CONTROL_CODE_GET_BLUEPRINT      0
+#define CONTROL_CODE_GET_THING_STATE    1
+#define CONTROL_CODE_SET_LISTENERS      2
 
 class ClientManager {
     /** When false, the manager thread quits ASAP */
@@ -33,6 +40,14 @@ class ClientManager {
      * @param command The JSON command
      */
     static void __onCommandFromVerboze(json command);
+
+    /**
+     * Responds to a control command from Verboze
+     * @param command      Control command sent by Verboze
+     * @param code         Control code
+     * @param target_room  Pointer to the target room
+     */
+    static void __onControlCommandFromVerboze(json command, int code, AggregatorClient* target_room);
 
     /**
      * Thread entry point
