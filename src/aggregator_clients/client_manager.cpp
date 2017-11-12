@@ -21,6 +21,9 @@ void ClientManager::__onDeviceDiscovered(std::string interface, std::string name
 }
 
 void ClientManager::__onCommandFromVerboze(json command) {
+    if (command.find("thing") == command.end())
+        return; // do not process any message unless its a state update
+
     std::string room_name = "";
     auto command_it = command.find("__room_name");
     if (command_it != command.end()) {
