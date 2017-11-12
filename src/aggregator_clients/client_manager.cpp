@@ -60,7 +60,7 @@ void ClientManager::__onCommandFromVerboze(json command) {
 
         if (target_room) {
             if (command.find("thing") == command.end()) {
-                // control command
+                // control command, handle it now
                 auto code_iter = command.find("code");
                 if (code_iter != command.end()) {
                     int code = code_iter.value();
@@ -68,7 +68,7 @@ void ClientManager::__onCommandFromVerboze(json command) {
                 }
                 return;
             } else {
-                // state update
+                // state update, just forward it to the respective middleware
                 target_room->Write(command);
             }
         }
