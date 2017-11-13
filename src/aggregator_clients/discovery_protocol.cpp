@@ -78,8 +78,8 @@ DiscoveryProtocol::NetworkInterface DiscoveryProtocol::__parseIFA(struct ifaddrs
 bool DiscoveryProtocol::__isInterfaceAccepted(std::string name) {
     if (m_broadcast_interfaces.size() == 0)
         return true;
-    for (int i = 0; i < m_broadcast_interfaces.size(); i++)
-        if (m_broadcast_interfaces[i] == name)
+    for (auto it: m_broadcast_interfaces)
+        if (it == name)
             return true;
     return false;
 }
@@ -131,9 +131,9 @@ void DiscoveryProtocol::__discoveryThread() {
         int maxfd = m_event_pipe_read_end;
         FD_SET(m_event_pipe_read_end, &read_fds);
 
-        for (int i = 0; i < interfaces.size(); i++) {
-            FD_SET(interfaces[i].broadcast_socket, &read_fds);
-            maxfd = std::max(maxfd, interfaces[i].broadcast_socket);
+        for (auto it: interfaces) {
+            FD_SET(it.broadcast_socket, &read_fds);
+            maxfd = std::max(maxfd, it.broadcast_socket);
         }
 
         int ret = select(maxfd + 1, &read_fds, NULL, NULL, NULL);
@@ -162,12 +162,12 @@ void DiscoveryProtocol::__discoveryThread() {
                     m_interfaces_lock.unlock();
                 }
             } else {
-                for (int i = 0; i < interfaces.size(); i++) {
-                    if (FD_ISSET(interfaces[i].broadcast_socket, &read_fds)) {
+                for (auto interface: interfaces) {
+                    if (FD_ISSET(interface.broadcast_socket, &read_fds)) {
                         struct sockaddr_in sender_addr;
                         socklen_t addr_size = sizeof(sender_addr);
-                        std::vector<uint8_t>* sock_buffer = &discovery_buffers.find(interfaces[i].broadcast_socket)->second;
-                        int nread = __robust_recvfrom(interfaces[i].broadcast_socket, tmp_buf, sizeof(tmp_buf), 0, (struct sockaddr*)&sender_addr, &addr_size);
+                        std::vector<uint8_t>* sock_buffer = &discovery_buffers.find(interface.broadcast_socket)->second;
+                        int nread = __robust_recvfrom(interface.broadcast_socket, tmp_buf, sizeof(tmp_buf), 0, (struct sockaddr*)&sender_addr, &addr_size);
                         for (int j = 0; j < nread; j++)
                             sock_buffer->push_back(tmp_buf[j]);
                         while (sock_buffer->size() >= 4) {
@@ -177,7 +177,7 @@ void DiscoveryProtocol::__discoveryThread() {
                             uint8_t type    = raw_buffer[2];
                             uint8_t msglen  = raw_buffer[3];
                             if (magic_1 == DISCOVERY_MAGIC[0] && magic_2 == DISCOVERY_MAGIC[1]) {
-                                if (sock_buffer->size() >= 4 + msglen) {
+                                if (sock_buffer->size() >= (uint32_t)4 + msglen) {
                                     char* tmp = new char[msglen+1];
                                     memcpy(tmp, raw_buffer+4, msglen);
                                     tmp[msglen] = 0;
@@ -203,7 +203,7 @@ void DiscoveryProtocol::__discoveryThread() {
                                             iport = std::stoi(port);
                                         } catch(...) {}
                                         m_interfaces_lock.lock();
-                                        m_callback(interfaces[i].name, name, ip, iport, type, data);
+                                        m_callback(interface.name, name, ip, iport, type, data);
                                         m_interfaces_lock.unlock();
                                     }
                                 } else

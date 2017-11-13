@@ -65,7 +65,7 @@ int Log::_initLogDirs() {
     std::sort(run_folders.begin(), run_folders.end(), [ ]( const std::pair<int, std::string>& lhs, const std::pair<int, std::string>& rhs ) {
        return lhs.first < rhs.first;
     });
-    while (run_folders.size() >= m_max_num_runs) {
+    while (run_folders.size() >= (uint32_t)m_max_num_runs) {
         std::string run_folder = run_folders[0].second;
         boost::filesystem::path run_folder_dir(m_log_folder+"/"+run_folder);
         boost::filesystem::remove_all(run_folder_dir);

@@ -72,8 +72,8 @@ bool AggregatorClient::OnMessage(json msg) {
     if (changed_state) {
         /** Put the __room_names stamp on the message */
         msg["__room_names"] = json();
-        for (int i = 0; i < m_room_names.size(); i++)
-            msg["__room_names"].push_back(m_room_names[i]);
+        for (auto room_name: m_room_names)
+            msg["__room_names"].push_back(room_name);
 
         VerbozeAPI::SendCommand(msg);
     }

@@ -22,7 +22,9 @@ void ClientManager::__onDeviceDiscovered(std::string interface, std::string name
 void ClientManager::__onControlCommandFromVerboze(json command, int code, AggregatorClient* target_room) {
     switch (code) {
         case CONTROL_CODE_GET_BLUEPRINT: {
-            VerbozeAPI::SendCommand(target_room->GetCache());
+            json blueprint = target_room->GetCache();
+            blueprint["__room_names"] = target_room->GetNames();
+            VerbozeAPI::SendCommand(blueprint);
             break;
         } case CONTROL_CODE_GET_THING_STATE: {
             if (command.find("thing-id") != command.end()) {

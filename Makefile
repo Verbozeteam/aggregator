@@ -10,17 +10,24 @@ GPP_LIB_DIRS := -L/usr/local/opt/openssl/lib
 GPP_LIBS := -lssl -lcrypto -lboost_program_options -lboost_log -lboost_system -lboost_thread -lboost_chrono -lcpprest -lboost_log_setup -lboost_filesystem
 
 AGGREGATOR := aggregator
-GPP_FLAGS := -g -std=c++14 -Wall -Werror -MMD -MP $(GPP_INC_DIRS) -DBOOST_LOG_DYN_LINK
-LD_FLAGS := $(GPP_LIBS) $(GPP_LIB_DIRS)
+GPP := g++
+GPP_FLAGS := -g -std=c++14 -Wall -Werror -DBOOST_LOG_DYN_LINK
+LD_FLAGS :=
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(@D)
-	g++ $(GPP_FLAGS) -c -o $@ $<
+	$(GPP) $(GPP_FLAGS) $(GPP_INC_DIRS) -MMD -MP -c -o $@ $<
 
 $(AGGREGATOR): $(OBJ_FILES)
-	g++ $(LD_FLAGS) -o $@ $^
+	$(GPP) $(LD_FLAGS) $(GPP_LIB_DIRS) $(GPP_LIBS) -o $@ $^
 
 all: $(AGGREGATOR)
+
+rbp: GPP = /Volumes/xtools/armv8-rpi3-linux-gnueabihf/bin/armv8-rpi3-linux-gnueabihf-g++
+rbp: GPP_LIB_DIRS += -L/usr/local/lib
+rbp: GPP_INC_DIRS += -I/usr/local/include
+rbp: LD_FLAGS += -dynamiclib --verbose
+rbp: $(AGGREGATOR)
 
 clean:
 	rm -f $(AGGREGATOR)
