@@ -15,19 +15,19 @@ using namespace web::http::client;
 using namespace concurrency::streams;
 
 std::string VerbozeAPI::m_connection_url = "";
-websocket_callback_client VerbozeAPI::m_permenanat_client;
+websocket_callback_client VerbozeAPI::m_permanent_client;
 CommandCallback VerbozeAPI::m_command_callback = nullptr;
 bool VerbozeAPI::m_websocket_connected = false;
 
 void VerbozeAPI::__first_connection_thread() {
-    m_permenanat_client = websocket_callback_client();
+    m_permanent_client = websocket_callback_client();
 
     while (true) {
         LOG(info) << "Attempting to connect to websocket on " << m_connection_url << "...";
         if (__reconnect() == 0) {
             try {
                 // set receive handler
-                m_permenanat_client.set_message_handler([](websocket_incoming_message msg) {
+                m_permanent_client.set_message_handler([](websocket_incoming_message msg) {
                     std::string smsg = msg.extract_string().get();
                     json jmsg;
                     try {
@@ -42,7 +42,7 @@ void VerbozeAPI::__first_connection_thread() {
                 });
 
                 // set close handler
-                m_permenanat_client.set_close_handler([](websocket_close_status close_status, const utility::string_t &reason, const std::error_code &error) {
+                m_permanent_client.set_close_handler([](websocket_close_status close_status, const utility::string_t &reason, const std::error_code &error) {
                     LOG(warning) << "Websocket connection dropped: [status=" << (int)close_status << "] reason: " << reason << " (code " << error << ")";
                     sleep(5);
                     VerbozeAPI::__reconnect();
@@ -51,10 +51,10 @@ void VerbozeAPI::__first_connection_thread() {
                 break;
             } catch (...) {
                 LOG(error) << "Failed to set websocket handlers";
-                m_permenanat_client = websocket_callback_client();
+                m_permanent_client = websocket_callback_client();
             }
         } else
-            m_permenanat_client = websocket_callback_client();
+            m_permanent_client = websocket_callback_client();
 
         sleep(5);
     }
@@ -65,7 +65,7 @@ void VerbozeAPI::__first_connection_thread() {
 
 int VerbozeAPI::__reconnect() {
     try {
-        m_permenanat_client.connect(U(m_connection_url)).wait();
+        m_permanent_client.connect(U(m_connection_url)).wait();
     } catch (...) {
         return -1;
     }
@@ -96,8 +96,8 @@ int VerbozeAPI::Initialize() {
 void VerbozeAPI::Cleanup() {
     try {
         if (m_websocket_connected) {
-            m_permenanat_client.set_close_handler(nullptr);
-            m_permenanat_client.close().wait();
+            m_permanent_client.set_close_handler(nullptr);
+            m_permanent_client.close().wait();
         }
     } catch (...) {
         LOG(error) << "Failed to close connection to websocket";
@@ -111,7 +111,7 @@ void VerbozeAPI::SendCommand(json command) {
     try {
         websocket_outgoing_message msg;
         msg.set_utf8_message(command.dump());
-        m_permenanat_client.send(msg).wait(); // NEED NU2 WAIT!
+        m_permanent_client.send(msg).wait(); // NEED NU2 WAIT!
     } catch (...) {
         LOG(fatal) << "Failed to send websocket message";
     }

@@ -17,7 +17,7 @@ class VerbozeAPI {
     /** URL that the websocket will try to connect to */
     static std::string m_connection_url;
     /** The client used for websocket communication */
-    static websocket_callback_client m_permenanat_client;
+    static websocket_callback_client m_permanent_client;
     /** Callback to be called when a message arrives from the websocket */
     static CommandCallback m_command_callback;
     /** Whether or not the connection with the websocket has ever been up */
