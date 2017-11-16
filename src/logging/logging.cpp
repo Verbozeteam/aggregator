@@ -103,7 +103,7 @@ int Log::Initialize() {
     );
     logging::add_common_attributes();
 
-    logging::add_console_log(std::cout, boost::log::keywords::format = (
+    logging::add_console_log(std::cout, keywords::format = (
         expr::stream << "[" << logging::trivial::severity << "]: " << expr::smessage
     ));
 
@@ -112,7 +112,11 @@ int Log::Initialize() {
     boost::shared_ptr< sinks::text_file_backend > backend =
         boost::make_shared< sinks::text_file_backend >(
             keywords::file_name = m_log_folder + "/" + m_current_run_foldername + string("/log_%N.log"),
-            keywords::rotation_size = m_max_file_size // max single log file size
+            keywords::rotation_size = m_max_file_size, // max single log file size
+            keywords::format = (expr::stream
+                << "[" << expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S") << "]"
+                << "[" << logging::trivial::severity << "]: " << expr::smessage
+            )
         );
 
     // Wrap it into the frontend and register in the core.
