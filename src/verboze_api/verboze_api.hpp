@@ -22,18 +22,13 @@ class VerbozeAPI {
     static CommandCallback m_command_callback;
     /** Whether or not the connection with the websocket has ever been up */
     static bool m_websocket_connected;
+    /** Protects accessing the websocket object */
+    static std::mutex m_connection_mutex;
 
     /**
-     * Attempts to connect the websocket to m_connection_url
-     * @return              0 on successfull connection, negative otherwise
+     * Entry point for a thread that will attempt to connect the websocket
      */
-    static int __reconnect();
-
-    /**
-     * Entry point for a thread that will run for as long as the connection to the
-     * websocket hasn't been initiated
-     */
-    static void __first_connection_thread();
+    static void __connect_websocket_async();
 
 public:
     /**

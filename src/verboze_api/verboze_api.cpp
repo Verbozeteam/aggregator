@@ -18,13 +18,23 @@ std::string VerbozeAPI::m_connection_url = "";
 websocket_callback_client VerbozeAPI::m_permanent_client;
 CommandCallback VerbozeAPI::m_command_callback = nullptr;
 bool VerbozeAPI::m_websocket_connected = false;
+std::mutex VerbozeAPI::m_connection_mutex;
 
-void VerbozeAPI::__first_connection_thread() {
+void VerbozeAPI::__connect_websocket_async() {
     m_permanent_client = websocket_callback_client();
 
     while (true) {
         LOG(info) << "Attempting to connect to websocket on " << m_connection_url << "...";
-        if (__reconnect() == 0) {
+
+        bool is_connection_successful = true;
+        try {
+            m_permanent_client.connect(U(m_connection_url)).wait();
+        } catch (...) {
+            is_connection_successful = false;
+        }
+
+        if (is_connection_successful) {
+            m_connection_mutex.lock();
             try {
                 // set receive handler
                 m_permanent_client.set_message_handler([](websocket_incoming_message msg) {
@@ -44,33 +54,35 @@ void VerbozeAPI::__first_connection_thread() {
                 // set close handler
                 m_permanent_client.set_close_handler([](websocket_close_status close_status, const utility::string_t &reason, const std::error_code &error) {
                     LOG(warning) << "Websocket connection dropped: [status=" << (int)close_status << "] reason: " << reason << " (code " << error << ")";
-                    sleep(5);
-                    VerbozeAPI::__reconnect();
+                    m_connection_mutex.lock();
+                    if (m_websocket_connected) {
+                        m_websocket_connected = false;
+                        m_permanent_client.set_close_handler(nullptr);
+                        m_permanent_client.close();
+                    }
+                    m_connection_mutex.unlock();
+
+                    std::thread t(__connect_websocket_async);
+                    t.detach();
                 });
 
-                break;
+                LOG(info) << "Websocket connected to " << m_connection_url;
+                m_websocket_connected = true;
             } catch (...) {
                 LOG(error) << "Failed to set websocket handlers";
                 m_permanent_client = websocket_callback_client();
             }
+
+            if (m_websocket_connected) {
+                m_connection_mutex.unlock();
+                break;
+            } else
+                m_connection_mutex.unlock();
         } else
             m_permanent_client = websocket_callback_client();
 
         sleep(5);
     }
-
-    LOG(info) << "Websocket connected to " << m_connection_url;
-    m_websocket_connected = true;
-}
-
-int VerbozeAPI::__reconnect() {
-    try {
-        m_permanent_client.connect(U(m_connection_url)).wait();
-    } catch (...) {
-        return -1;
-    }
-
-    return 0;
 }
 
 int VerbozeAPI::Initialize() {
@@ -85,7 +97,7 @@ int VerbozeAPI::Initialize() {
 
     m_connection_url = ConfigManager::get<std::string>("websocket-url");
 
-    std::thread t(__first_connection_thread);
+    std::thread t(__connect_websocket_async);
     t.detach();
 
     LOG(info) << "Verboze API initialized";
@@ -94,27 +106,31 @@ int VerbozeAPI::Initialize() {
 }
 
 void VerbozeAPI::Cleanup() {
+    m_connection_mutex.lock();
     try {
         if (m_websocket_connected) {
             m_permanent_client.set_close_handler(nullptr);
             m_permanent_client.close().wait();
+            m_websocket_connected = false;
         }
     } catch (...) {
         LOG(error) << "Failed to close connection to websocket";
     }
+    m_connection_mutex.unlock();
 }
 
 void VerbozeAPI::SendCommand(json command) {
-    if (!m_websocket_connected)
-        return; // don't do anything if cnnection is not up
-
-    try {
-        websocket_outgoing_message msg;
-        msg.set_utf8_message(command.dump());
-        m_permanent_client.send(msg).wait(); // NEED NU2 WAIT!
-    } catch (...) {
-        LOG(fatal) << "Failed to send websocket message";
+    m_connection_mutex.lock();
+    if (m_websocket_connected) {
+        try {
+            websocket_outgoing_message msg;
+            msg.set_utf8_message(command.dump());
+            m_permanent_client.send(msg).wait(); // NEED NU2 WAIT!
+        } catch (...) {
+            LOG(fatal) << "Failed to send websocket message";
+        }
     }
+    m_connection_mutex.unlock();
 }
 
 void VerbozeAPI::SetCommandCallback(CommandCallback callback) {
