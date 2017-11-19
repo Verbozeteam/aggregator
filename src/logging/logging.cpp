@@ -112,6 +112,7 @@ int Log::Initialize() {
     boost::shared_ptr< sinks::text_file_backend > backend =
         boost::make_shared< sinks::text_file_backend >(
             keywords::file_name = m_log_folder + "/" + m_current_run_foldername + string("/log_%N.log"),
+            keywords::target = m_log_folder + "/" + m_current_run_foldername,
             keywords::rotation_size = m_max_file_size, // max single log file size
             keywords::format = (expr::stream
                 << "[" << expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S") << "]"

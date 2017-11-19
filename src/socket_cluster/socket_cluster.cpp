@@ -60,7 +60,7 @@ bool SocketClient::OnReadingAvailable() {
         return false;
     } else {
         m_read_buffer.insert(std::end(m_read_buffer), tmp_buf, tmp_buf + rbytes);
-        if (m_read_buffer.size() >= 4) {
+        while (m_read_buffer.size() >= 4) {
             size_t payload_size =
                 ((((size_t)m_read_buffer[0]) & 0xFF)      ) |
                 ((((size_t)m_read_buffer[1]) & 0xFF) << 8 ) |
@@ -87,7 +87,8 @@ bool SocketClient::OnReadingAvailable() {
                     LOG(warning) << "Client " << m_ip << " (fd " << m_client_fd << ") communication failure";
                     return false;
                 }
-            }
+            } else
+                break;
         }
     }
 
