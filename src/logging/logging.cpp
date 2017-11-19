@@ -113,12 +113,9 @@ int Log::Initialize() {
         boost::make_shared< sinks::text_file_backend >(
             keywords::file_name = m_log_folder + "/" + m_current_run_foldername + string("/log_%N.log"),
             keywords::target = m_log_folder + "/" + m_current_run_foldername,
-            keywords::rotation_size = m_max_file_size, // max single log file size
-            keywords::format = (expr::stream
-                << "[" << expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S") << "]"
-                << "[" << logging::trivial::severity << "]: " << expr::smessage
-            )
+            keywords::rotation_size = m_max_file_size // max single log file size
         );
+    backend->auto_flush(true);
 
     // Wrap it into the frontend and register in the core.
     // The backend requires synchronization in the frontend.
@@ -130,6 +127,10 @@ int Log::Initialize() {
         keywords::max_size = m_max_file_size,
         keywords::max_files = m_max_num_files // max number of log files
     ));
+
+    sink->set_formatter(expr::stream
+        << "[" << expr::format_date_time< boost::posix_time::ptime >("TimeStamp", "%Y-%m-%d %H:%M:%S") << "]"
+        << "[" << logging::trivial::severity << "]: " << expr::smessage);
 
     core->add_sink(sink);
 
