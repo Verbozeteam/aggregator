@@ -92,7 +92,7 @@ public:
      * @param  id ID to check against
      * @return    true iff a client is registered with the given ID
      */
-    static bool IsClientRegistered(std::string ip);
+    static bool IsClientRegistered(std::string id);
 
     /**
      * Retrieves a registered client by its ID

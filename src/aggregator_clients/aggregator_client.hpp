@@ -21,8 +21,8 @@ class AggregatorClient : public SocketClient {
     /** Cache of the state of the client */
     json m_cache;
 
-    /** Client name */
-    std::vector<std::string> m_room_names;
+    /** Client room id */
+    std::string m_room_id;
 
 protected:
     AggregatorClient(int fd, std::string ip, int port);
@@ -40,21 +40,14 @@ public:
     virtual bool OnMessage(json msg);
 
     /**
-     * Checks if this client has a room with a given name
-     * @param  name Name to look for
-     * @return      whether or not a room with the given name exists on this client
-     */
-    bool HasRoom(std::string name);
-
-    /**
-     * Retrieves the names that this client represents
-     * @return List of names that this client represents
-     */
-    std::vector<std::string> GetNames() const;
-
-    /**
      * Retrieves the cache of this client
      * @return Cache of the client
      */
     json GetCache(std::string key = "") const;
+
+    /**
+     * Retrieves the room ID of this client
+     * @return m_room_id
+     */
+    std::string GetID() const;
 };

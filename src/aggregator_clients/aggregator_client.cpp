@@ -55,38 +55,20 @@ bool AggregatorClient::OnMessage(json msg) {
     bool changed_state = __merge_json(&m_cache, msg);
 
     if (msg.find("config") != msg.end()) {
-        m_room_names.clear();
         try {
-            json rooms = msg["config"]["rooms"];
-            for (json::iterator it = rooms.begin(); it != rooms.end(); it++) {
-                json room = it.value();
-                if (room.find("name") != room.end()) {
-                    json names = room["name"];
-                    if (names.find("en") != names.end())
-                        m_room_names.push_back(names["en"]);
-                }
-            }
-        } catch (...) {}
+            m_room_id = msg["config"]["id"];
+        } catch (...) {
+            m_room_id = "";
+        }
     }
 
     if (changed_state) {
         /** Put the __room_names stamp on the message */
-        msg["__room_names"] = GetNames();
+        msg["__room_id"] = m_room_id;
         VerbozeAPI::SendCommand(msg);
     }
 
     return true;
-}
-
-bool AggregatorClient::HasRoom(std::string name) {
-    for (auto it = m_room_names.begin(); it != m_room_names.end(); it++)
-        if (*it == name)
-            return true;
-    return false;
-}
-
-std::vector<std::string> AggregatorClient::GetNames() const {
-    return m_room_names;
 }
 
 json AggregatorClient::GetCache(std::string key) const {
@@ -98,4 +80,8 @@ json AggregatorClient::GetCache(std::string key) const {
             return it.value();
         return json();
     }
+}
+
+std::string AggregatorClient::GetID() const {
+    return m_room_id;
 }

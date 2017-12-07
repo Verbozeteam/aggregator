@@ -20,10 +20,14 @@ void ClientManager::__onDeviceDiscovered(std::string interface, std::string name
 }
 
 void ClientManager::__onControlCommandFromVerboze(json command, int code, AggregatorClient* target_room) {
+    auto reply_target = command.find("__reply_target");
+
     switch (code) {
         case CONTROL_CODE_GET_BLUEPRINT: {
             json blueprint = target_room->GetCache();
-            blueprint["__room_names"] = target_room->GetNames();
+            blueprint["__room_id"] = target_room->GetID();
+            if (reply_target != command.end())
+                blueprint["__reply_target"] = command["__reply_target"];
             VerbozeAPI::SendCommand(blueprint);
             break;
         } case CONTROL_CODE_GET_THING_STATE: {
@@ -32,7 +36,9 @@ void ClientManager::__onControlCommandFromVerboze(json command, int code, Aggreg
                 json thing_state = target_room->GetCache(thing_id);
                 if (!thing_state.is_null()) {
                     thing_state["thing"] = thing_id;
-                    thing_state["__room_names"] = target_room->GetNames();
+                    thing_state["__room_id"] = target_room->GetID();
+                    if (reply_target != command.end())
+                        thing_state["__reply_target"] = command["__reply_target"];
                     VerbozeAPI::SendCommand(thing_state);
                 }
             }
@@ -45,16 +51,16 @@ void ClientManager::__onControlCommandFromVerboze(json command, int code, Aggreg
 }
 
 void ClientManager::__onCommandFromVerboze(json command) {
-    auto command_it = command.find("__room_name");
+    auto command_it = command.find("__room_id");
     if (command_it != command.end()) {
-        std::string room_name = command_it.value();
-        command.erase("__room_name");
+        std::string room_id = command_it.value();
+        command.erase("__room_id");
 
         AggregatorClient* target_room = nullptr;
         std::vector<SocketClientPtr> all_clients = SocketCluster::GetClientsList();
         for (auto it : all_clients) {
             AggregatorClient* cl = (AggregatorClient*)(it.get());
-            if (cl->HasRoom(room_name)) {
+            if (cl->GetID() == room_id) {
                 target_room = cl;
                 break;
             }
