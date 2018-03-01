@@ -21,6 +21,18 @@ Follow the instructions [here](https://github.com/Microsoft/cpprestsdk). For mac
 ```
     brew install cpprestsdk
 ```
+For Linux (Raspberry Pi Raspbian Jessie)
+```
+    sudo apt-get install g++ zlib1g-dev libssl-dev cmake
+    git clone https://github.com/Microsoft/cpprestsdk.git casablanca
+    cd casablanca/Release
+    mkdir build.release
+    cd build.release
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=0
+    sed -i 's/-Werror//g' src/CMakeFiles/cpprest.dir/flags.make
+    make
+    sudo make install
+```
 
 # Bugs
 - I don't know
