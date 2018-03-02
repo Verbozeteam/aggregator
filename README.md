@@ -28,7 +28,7 @@ For Linux (Raspberry Pi Raspbian Jessie)
     cd casablanca/Release
     mkdir build.release
     cd build.release
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=0
+    cmake .. -DCMAKE_BUILD_TYPE=Release
     sed -i 's/-Werror//g' src/CMakeFiles/cpprest.dir/flags.make
     make
     sudo make install
