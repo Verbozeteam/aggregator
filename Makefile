@@ -7,7 +7,7 @@ OBJ_FILES := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRC_FILES))
 
 GPP_INC_DIRS := -I$(INC_DIR) -I/usr/local/opt/openssl/include
 GPP_LIB_DIRS := -L/usr/local/opt/openssl/lib
-GPP_LIBS := -lpthread -lssl -lcrypto -lboost_program_options -lboost_log -lboost_system -lboost_thread -lboost_chrono -lcpprest -lboost_log_setup -lboost_filesystem
+GPP_LIBS := -lpthread -lssl -lcrypto -lboost_program_options -lboost_log -lboost_system -lboost_thread -lboost_chrono -lboost_log_setup -lboost_filesystem -lwebsockets
 
 AGGREGATOR := aggregator
 GPP := g++

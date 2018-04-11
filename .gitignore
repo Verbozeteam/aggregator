@@ -1,4 +1,5 @@
 aggregator
+.gdbinit
 
 # Prerequisites
 *.d

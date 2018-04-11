@@ -16,20 +16,18 @@ To install [JSON for modern C++](https://github.com/nlohmann/json):
     brew install nlohmann_json
 ```
 
-### C++ Rest Framework (Casablanca)
-Follow the instructions [here](https://github.com/Microsoft/cpprestsdk). For mac just
+### libwebsocket
+Repository can be found [here](https://github.com/warmcat/libwebsockets).
 ```
-    brew install cpprestsdk
-```
-For Linux (Raspberry Pi Raspbian Jessie)
-```
-    sudo apt-get install g++ zlib1g-dev libssl-dev cmake
-    git clone https://github.com/Microsoft/cpprestsdk.git casablanca
-    cd casablanca/Release
-    mkdir build.release
-    cd build.release
-    cmake .. -DCMAKE_BUILD_TYPE=Release
-    sed -i 's/-Werror//g' src/CMakeFiles/cpprest.dir/flags.make
+    git clone https://github.com/warmcat/libwebsockets.git
+    cd libwebsockets
+    mkdir build
+    # ==================
+    # FOR MAC:
+    cmake .. OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
+    # NON-MAC:
+    cmake ..
+    # ==================
     make
     sudo make install
 ```
