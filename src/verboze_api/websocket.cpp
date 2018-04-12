@@ -5,6 +5,7 @@
 #include <libwebsockets.h>
 #include <sys/time.h>
 
+#include <mutex>
 #include <thread>
 #include <queue>
 
@@ -46,12 +47,12 @@ static int connect_client() {
         port = 443;
     }
     int slash_index = (int)url.find("/");
-    if (slash_index != std::string::npos) {
+    if (slash_index != (int)std::string::npos) {
         path = url.substr(slash_index);
         url = url.substr(0, slash_index);
     }
     int colon_index = (int)url.find(":");
-    if (colon_index != std::string::npos) {
+    if (colon_index != (int)std::string::npos) {
         try {
             std::string port_str = url.substr(colon_index+1);
             port = std::stoi(port_str);
