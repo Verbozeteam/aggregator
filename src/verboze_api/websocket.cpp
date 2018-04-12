@@ -45,12 +45,12 @@ static int connect_client() {
         is_ssl = true;
         port = 443;
     }
-    int slash_index = url.find("/");
+    int slash_index = (int)url.find("/");
     if (slash_index != std::string::npos) {
         path = url.substr(slash_index);
         url = url.substr(0, slash_index);
     }
-    int colon_index = url.find(":");
+    int colon_index = (int)url.find(":");
     if (colon_index != std::string::npos) {
         try {
             std::string port_str = url.substr(colon_index+1);
@@ -145,7 +145,7 @@ static int callback_broker(struct lws* wsi, enum lws_callback_reasons reason, vo
             memcpy(cstr + LWS_PRE, msg.c_str(), msg.size());
             int m = lws_write(wsi, cstr + LWS_PRE, msg.size(), LWS_WRITE_TEXT);
             delete[] cstr;
-            if (m < msg.size()) {
+            if (m < (int)msg.size()) {
                 ws_global::g_connection_mutex.unlock();
                 LOG(error) << "WEBSOCKET ERROR: " << m << " writing to ws socket";
                 return -1;
