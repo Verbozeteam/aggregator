@@ -44,9 +44,24 @@ int SocketClient::__openConnection(std::string ip, int port) {
 }
 
 SocketClient::SocketClient(int fd, std::string ip, int port) : m_client_fd(fd), m_ip(ip), m_port(port), m_identifier(ip+":"+std::to_string(port)) {
+    m_ssl = nullptr;
+    if (SocketCluster::m_ssl_context) {
+        m_ssl = SSL_new(SocketCluster::m_ssl_context);
+        SSL_set_fd(m_ssl, fd);
+        if (SSL_connect(m_ssl) == -1) {
+            LOG(error) << "Failed to connect SSL socket";
+            SSL_shutdown(m_ssl);
+            SSL_free(m_ssl);
+            m_ssl = nullptr;
+        }
+    }
 }
 
 SocketClient::~SocketClient() {
+    if (m_ssl) {
+        SSL_shutdown(m_ssl);
+        SSL_free(m_ssl);
+    }
     if (m_client_fd > 0)
         close(m_client_fd);
     m_client_fd = -1;
@@ -54,7 +69,9 @@ SocketClient::~SocketClient() {
 
 bool SocketClient::OnReadingAvailable() {
     uint8_t tmp_buf[4096];
-    int rbytes = __robust_recv(m_client_fd, tmp_buf, 4096);
+    int rbytes =
+        m_ssl ? __robust_SSL_read(m_ssl, tmp_buf, 4096)
+              : __robust_read(m_client_fd, tmp_buf, 4096);
     if (rbytes <= 0) {
         LOG(info) << "Client " << m_ip << " (fd " << m_client_fd << ") closed the cnnection";
         return false;
@@ -99,7 +116,9 @@ bool SocketClient::OnWritingAvailable() {
     m_write_buffer_mutex.lock();
     std::vector<uint8_t> staging_buffer (m_write_buffer);
     m_write_buffer_mutex.unlock();
-    int wbytes = __robust_send(m_client_fd, &staging_buffer[0], staging_buffer.size());
+    int wbytes =
+        m_ssl ? __robust_SSL_write(m_ssl, &staging_buffer[0], staging_buffer.size())
+              : __robust_write(m_client_fd, &staging_buffer[0], staging_buffer.size());
     if (wbytes <= 0) {
         LOG(warning) << "Failed to write to client " << m_ip << " (fd " << m_client_fd << ")";
         return false;
@@ -126,11 +145,13 @@ void SocketClient::Write(json msg) {
 
     SocketCluster::Notify();
 
-    LOG(trace) << "Sent message to " << m_ip << ": " << msg;
+    if (msg.size() > 0)
+        LOG(trace) << "Sent message to " << m_ip << ": " << msg;
 }
 
 bool SocketClient::OnMessage(json msg) {
-    LOG(trace) << "Received message from " << m_ip << ": " << msg;
+    if (msg.size() > 0)
+        LOG(trace) << "Received message from " << m_ip << ": " << msg;
     return true;
 }
 
@@ -138,6 +159,7 @@ bool SocketClient::OnMessage(json msg) {
  * CLUSTER
  *******************************************************************************************/
 
+SSL_CTX* SocketCluster::m_ssl_context = nullptr;
 bool SocketCluster::m_is_alive = true;
 int SocketCluster::m_event_pipe_read_end = -1;
 int SocketCluster::m_event_pipe_write_end = -1;
@@ -232,6 +254,42 @@ int SocketCluster::Initialize() {
 
     m_server_thread = std::thread(SocketCluster::__thread_entry);
 
+    // initialize SSL
+    SSL_load_error_strings();
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+
+    // create SSL context
+    if (ConfigManager::get<std::string>("ssl-key").size() > 0 || ConfigManager::get<std::string>("ssl-cert").size() > 0) {
+        m_ssl_context = SSL_CTX_new(TLSv1_2_client_method());
+        if (m_ssl_context) {
+            SSL_CTX_set_options(m_ssl_context, SSL_OP_SINGLE_DH_USE);
+
+            if (ConfigManager::get<std::string>("ssl-key").size() > 0) {
+                LOG(info) << "Using SSL key: " << ConfigManager::get<std::string>("ssl-key");
+                int use_prv = SSL_CTX_use_PrivateKey_file(m_ssl_context, ConfigManager::get<std::string>("ssl-key").c_str(), SSL_FILETYPE_PEM);
+
+                if (use_prv != 1) {
+                    LOG(error) << "Failed to load private key (" << use_prv << ")";
+                    return -3;
+                }
+            }
+
+            if (ConfigManager::get<std::string>("ssl-cert").size() > 0) {
+                LOG(info) << "Using SSL certificate: " << ConfigManager::get<std::string>("ssl-cert");
+                int use_cert = SSL_CTX_use_certificate_file(m_ssl_context, ConfigManager::get<std::string>("ssl-cert").c_str(), SSL_FILETYPE_PEM);
+
+                if (use_cert != 1) {
+                    LOG(error) << "Failed to load certificate (" << use_cert << ")";
+                    return -4;
+                }
+            }
+        } else {
+            LOG(error) << "Failed to create SSL context";
+            return -2;
+        }
+    }
+
     LOG(info) << "SocketCluster ready";
 
     return 0;
@@ -257,6 +315,11 @@ void SocketCluster::Cleanup() {
         close(m_event_pipe_write_end);
 
     m_event_pipe_read_end = m_event_pipe_write_end = -1;
+
+    SSL_CTX_free(m_ssl_context);
+    m_ssl_context = nullptr;
+    ERR_free_strings();
+    EVP_cleanup();
 
     LOG(info) << "SocketCluster shut down";
 }

@@ -1,3 +1,4 @@
+#include "config/config.hpp"
 #include "logging/logging.hpp"
 #include "aggregator_clients/client_manager.hpp"
 #include "aggregator_clients/discovery_protocol.hpp"
@@ -5,16 +6,24 @@
 #include "verboze_api/verboze_api.hpp"
 #include "utilities/time_utilities.hpp"
 
+#include <fstream>
+
 bool ClientManager::m_is_alive = true;
 std::thread ClientManager::m_manager_thread;
+std::unordered_map<std::string, ClientManager::AUTHENTICATION_STRUCT> ClientManager::m_credentials_map;
+std::unordered_map<std::string, DISCOVERED_DEVICE> ClientManager::m_clients_require_password;
 
-void ClientManager::__onDeviceDiscovered(std::string interface, std::string name, std::string ip, int port, int type, std::string data) {
+void ClientManager::__onDeviceDiscovered(DISCOVERED_DEVICE dev) {
     // If the middleware on that IP is not registered, attempt to register it
-    if (type == 3) { // type 3 is a room
-        if (!SocketCluster::IsClientRegistered(ip+":"+std::to_string(port))) {
-            SocketClientPtr sc = SocketClient::Create<AggregatorClient> (ip, port);
-            if (sc)
-                sc->Write("{\"code\": 0}"_json);
+    if (dev.type == 3) { // type 3 is a room
+        if (!SocketCluster::IsClientRegistered(dev.ip+":"+std::to_string(dev.port)) && __clientCanAuthenticate(dev)) {
+            SocketClientPtr sc = SocketClient::Create<AggregatorClient> (dev.ip, dev.port);
+            if (sc) {
+                AggregatorClient* ac = (AggregatorClient*)sc.get();
+                ac->m_discovery_info = dev;
+                __authenticateClient(ac); // authenticate
+                sc->Write("{\"code\": 0}"_json); // Request blueprint
+            }
         }
     }
 }
@@ -113,9 +122,11 @@ void ClientManager::__threadEntry() {
     }
 }
 
-
 int ClientManager::Initialize() {
     m_is_alive = true;
+
+    // Load stored credentials
+    __readCredentialsMap();
 
     m_manager_thread = std::thread(__threadEntry);
 
@@ -129,4 +140,101 @@ void ClientManager::Cleanup() {
 
     if (m_manager_thread.joinable())
         m_manager_thread.join();
+}
+
+bool ClientManager::__clientCanAuthenticate(DISCOVERED_DEVICE dev) {
+    std::string client_key = __getClientCredentialsMapKey(dev);
+    auto it = m_credentials_map.find(client_key);
+    if (it == m_credentials_map.end()) {
+        // this client has no authentication info, add it to the m_clients_require_password (if it doesn't exist)
+        return __markClientRequiresPassword(dev);
+    }
+    return true;
+}
+
+void ClientManager::__authenticateClient(AggregatorClient* client) {
+    std::string client_key = __getClientCredentialsMapKey(client->m_discovery_info);
+    auto iter = m_credentials_map.find(client_key);
+    if (iter != m_credentials_map.end())
+        client->Write(iter->second.get_json_and_clear_password()); // Authenticate
+}
+
+void ClientManager::RemoveClientCredentials(AggregatorClient* client) {
+    std::string client_key = __getClientCredentialsMapKey(client->m_discovery_info);
+    LOG(warning) << "Credentials for client " << client_key << " no longer works.";
+    m_credentials_map.erase(client_key);
+    __writeCredentialsMap();
+
+    // add this client to the list of clients that require password to authenticate (since it failed - it needs a new token)
+    __markClientRequiresPassword(client->m_discovery_info);
+}
+
+std::string ClientManager::__getClientCredentialsMapKey(DISCOVERED_DEVICE dev) {
+    return dev.name + ":" + dev.ip + ":" + std::to_string(dev.port);
+}
+
+bool ClientManager::__markClientRequiresPassword(DISCOVERED_DEVICE dev) {
+    std::string client_key = __getClientCredentialsMapKey(dev);
+    if (m_clients_require_password.find(client_key) == m_clients_require_password.end())
+        m_clients_require_password.insert(std::pair<std::string, DISCOVERED_DEVICE>(client_key, dev));
+    return false;
+}
+
+void ClientManager::__readCredentialsMap() {
+    std::string filename = ConfigManager::get<std::string>("credentials-file");
+    if(filename.size() > 0) {
+        LOG(info) << "Using credentials file " << filename;
+        std::fstream file;
+        file.open(filename, std::ios::in);
+        if (file.is_open()) {
+            while (!file.eof()) {
+                std::string identifier, token;
+                if (std::getline(file, identifier)) {
+                    if (std::getline(file, token)) {
+                        m_credentials_map.insert(std::pair<std::string, ClientManager::AUTHENTICATION_STRUCT>(identifier, AUTHENTICATION_STRUCT(token)));
+                    }
+                }
+            }
+            file.close();
+        } else
+            LOG(warning) << "Failed to open credentials file " << filename;
+    }
+}
+
+void ClientManager::__writeCredentialsMap() {
+    std::string filename = ConfigManager::get<std::string>("credentials-file");
+    if (filename.size() > 0) {
+        std::fstream file;
+        file.open(filename, std::ios::out);
+        if (file.is_open()) {
+            for (auto iter = m_credentials_map.begin(); iter != m_credentials_map.end(); iter++) {
+                file << iter->first << std::endl;
+                file << iter->second.token << std::endl;
+            }
+        } else
+            LOG(warning) << "Failed to open credentials file " << filename;
+    }
+}
+
+std::string ClientManager::__generateNewAuthenticationToken(AggregatorClient* client) {
+    // letters a-z, A-Z, and numbers 0-9
+    const int num_symbols = 26 * 2 + 10;
+    const int token_length = 64;
+    std::string token = "";
+
+    for (int i = 0; i < token_length; i++) {
+        int r = rand() % num_symbols;
+        if (r < 26)
+            token += (char)('a' + r);
+        else if (r < 26 * 2)
+            token += (char)('A' + (r-26));
+        else
+            token += (char)('0' + (r-26*2));
+    }
+
+    std::string key = __getClientCredentialsMapKey(client->m_discovery_info);
+    m_credentials_map.insert(std::pair<std::string, ClientManager::AUTHENTICATION_STRUCT>(key, AUTHENTICATION_STRUCT(token)));
+    __writeCredentialsMap();
+
+    return token;
 }

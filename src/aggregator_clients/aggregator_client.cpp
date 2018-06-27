@@ -1,5 +1,6 @@
 #include "logging/logging.hpp"
 #include "aggregator_clients/aggregator_client.hpp"
+#include "aggregator_clients/client_manager.hpp"
 #include "verboze_api/verboze_api.hpp"
 
 /**
@@ -48,12 +49,19 @@ void AggregatorClient::Write(json msg) {
 bool AggregatorClient::OnMessage(json msg) {
     SocketClient::OnMessage(msg);
 
+    if (msg.find("noauth") != msg.end()) {
+        LOG(warning) << "Middleware rejected client " << m_identifier << " for no authentication";
+        ClientManager::RemoveClientCredentials(this);
+        return false;
+    }
+
     if (msg.find("thing") != msg.end()) // don't react to control messages (should never happen...)
         return true;
 
     /** Perform caching */
     bool changed_state = __merge_json(&m_cache, msg);
 
+    std::string old_room_id = m_room_id;
     if (msg.find("config") != msg.end()) {
         try {
             m_room_id = msg["config"]["id"];
@@ -61,6 +69,13 @@ bool AggregatorClient::OnMessage(json msg) {
             m_room_id = "";
         }
     }
+    if (old_room_id != m_room_id && m_room_id != "")
+        VerbozeAPI::Endpoints::RegisterRoom(m_room_id, [](VerbozeHttpResponse response) {
+            if (response.raw_data.size())
+                LOG(info) << response.raw_data.data();
+            LOG(info) << response.data.dump(4);
+            LOG(info) << "Code " << response.status_code;
+        });
 
     if (changed_state) {
         /** Put the __room_names stamp on the message */

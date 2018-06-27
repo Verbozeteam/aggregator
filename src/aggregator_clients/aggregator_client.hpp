@@ -1,6 +1,7 @@
 #pragma once
 
 #include "socket_cluster/socket_cluster.hpp"
+#include "aggregator_clients/discovery_protocol.hpp"
 
 #include <vector>
 #include <string>
@@ -23,6 +24,9 @@ class AggregatorClient : public SocketClient {
 
     /** Client room id */
     std::string m_room_id;
+
+    /** Discovery info */
+    DISCOVERED_DEVICE m_discovery_info;
 
 protected:
     AggregatorClient(int fd, std::string ip, int port);

@@ -1,5 +1,10 @@
 #pragma once
 
+// openSSL
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 #include <json.hpp>
 using json = nlohmann::json;
 
@@ -27,6 +32,9 @@ typedef std::shared_ptr<class SocketClient> SocketClientPtr;
  */
 class SocketCluster {
     friend class SocketClient;
+
+    /** SSL context */
+    static SSL_CTX* m_ssl_context;
 
     /** thread runs while true */
     static bool m_is_alive;
@@ -116,6 +124,8 @@ class SocketClient {
 
     /** fd for the socket */
     int m_client_fd;
+    /** SSL object for m_client_fd */
+    SSL* m_ssl;
     /** mutex to protect modifying the write buffer */
     std::mutex m_write_buffer_mutex;
     /** pending write buffer */

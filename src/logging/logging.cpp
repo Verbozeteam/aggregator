@@ -81,6 +81,31 @@ int Log::_initLogDirs() {
     return 0;
 }
 
+
+
+// Attribute value tag type
+struct severity_tag;
+
+// The operator is used when putting the severity level to log
+logging::formatting_ostream& operator<<
+(
+    logging::formatting_ostream& strm,
+    logging::to_log_manip< boost::log::trivial::severity_level, severity_tag > const& manip
+)
+{
+    boost::log::trivial::severity_level level = manip.get();
+    switch (level) {
+        case boost::log::trivial::severity_level::fatal: strm << "101"; break;
+        case boost::log::trivial::severity_level::error: strm << "31"; break;
+        case boost::log::trivial::severity_level::warning: strm << "33"; break;
+        case boost::log::trivial::severity_level::info: strm << "34"; break;
+        case boost::log::trivial::severity_level::debug: strm << "37"; break;
+        case boost::log::trivial::severity_level::trace: strm << "90"; break;
+    }
+
+    return strm;
+}
+
 int Log::Initialize() {
     m_max_file_size = ConfigManager::get<int>("max-log-file-size");
     m_max_num_files = ConfigManager::get<int>("max-num-log-files");
@@ -104,7 +129,7 @@ int Log::Initialize() {
     logging::add_common_attributes();
 
     logging::add_console_log(std::cout, keywords::format = (
-        expr::stream << "[" << logging::trivial::severity << "]: " << expr::smessage
+        expr::stream << "\033[" << expr::attr< boost::log::trivial::severity_level, severity_tag >("Severity") << "m[" << logging::trivial::severity << "]: " << expr::smessage << "\033[0m"
     ));
 
     boost::shared_ptr< logging::core > core = logging::core::get();

@@ -1,5 +1,8 @@
 aggregator
 .gdbinit
+sslkey.pem
+sslcert.pem
+credentials
 
 # Prerequisites
 *.d

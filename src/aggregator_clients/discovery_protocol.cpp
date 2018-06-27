@@ -202,8 +202,15 @@ void DiscoveryProtocol::__discoveryThread() {
                                         try {
                                             iport = std::stoi(port);
                                         } catch(...) {}
+                                        DISCOVERED_DEVICE d;
+                                        d.interface = interface.name;
+                                        d.name = name;
+                                        d.ip = ip;
+                                        d.port = iport;
+                                        d.type = type;
+                                        d.data = data;
                                         m_interfaces_lock.lock();
-                                        m_callback(interface.name, name, ip, iport, type, data);
+                                        m_callback(d);
                                         m_interfaces_lock.unlock();
                                     }
                                 } else

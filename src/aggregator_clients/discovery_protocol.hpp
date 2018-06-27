@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <string>
 #include <unordered_map>
 #include <thread>
 #include <mutex>
@@ -17,6 +18,22 @@
 /** Maximum length of a discovery response */
 #define MAX_DISCOVERY_RESPONSE_BUFFER 512
 
+/** Represents a discovered device */
+struct DISCOVERED_DEVICE {
+    /** Interface on which the device was discovered */
+    std::string interface;
+    /** Name of the discovered device */
+    std::string name;
+    /** IP of device */
+    std::string ip;
+    /** Port of middleware service running on device */
+    int port;
+    /** Type of device */
+    int type;
+    /** Data for device (found when discovery description is formatted <name>:<port>:<data>) */
+    std::string data;
+};
+
 /**
  * A callback function that is invoked when a device is discovered. Params:
  * - interface name
@@ -25,7 +42,7 @@
  * - device type
  * - device data
  */
-typedef void (*DiscoveryCallback) (std::string, std::string, std::string, int, int, std::string);
+typedef void (*DiscoveryCallback) (DISCOVERED_DEVICE);
 
 /**
  * The DiscoveryProtocol provides a toolset to discover devices using the discovery ptorocol

@@ -23,7 +23,11 @@ int ConfigManager::LoadFromCommandline(int argc, char* argv[]) {
         ("max-num-log-files,nlf", po::value<int>()->default_value(5), "Set the maximum number of log files per run")
         ("max-num-log-runs,nlr", po::value<int>()->default_value(5), "Set the maximum number of runs to log")
         ("discovery-interfaces,i", po::value<std::vector<std::string>>()->multitoken()->default_value(std::vector<std::string>{"en0", "eth0", "eth1", "wlan0", "wlan1"}), "Set the interfaces on which discovery happens")
-        ("websocket-url,ws", po::value<std::string>()->default_value("ws://localhost:8000"), "Set the url of the permenant websocket connection to Verboze")
+        ("verboze-url,u", po::value<std::string>()->default_value("www.verboze.com/"), "Set the url of the Verboze server (WITHOUT PROTOCOL!)")
+        ("verboze-token,t", po::value<std::string>()->default_value(""), "Set the token used to communicate with Verboze website (token must exist on website's database as a token to a hub)")
+        ("ssl-key,key", po::value<std::string>()->default_value(""), "Path to a file containing the SSL key")
+        ("ssl-cert,cert", po::value<std::string>()->default_value(""), "Path to a file containing the SSL certificate")
+        ("credentials-file,cred", po::value<std::string>()->default_value(""), "Path to a file containing credentials for the aggregator clients. The file must be formatted such that each two lines are one for the client 'key' (name:ip:port) and one for the token")
     ;
 
     try {

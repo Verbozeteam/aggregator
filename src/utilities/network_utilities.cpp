@@ -21,6 +21,18 @@ int __robust_write(int fd, uint8_t* buf, size_t buflen) {
     return wbytes;
 }
 
+int __robust_SSL_write(SSL* ssl, void* buf, int buflen) {
+    int attempt = 0;
+    int wbytes;
+    while (attempt++ < 5) {
+        wbytes = SSL_write(ssl, buf, buflen);
+        if (wbytes < 0 && (errno == EINTR || errno == EAGAIN))
+            continue;
+        break;
+    }
+    return wbytes;
+}
+
 int __robust_send(int fd, uint8_t* buf, size_t buflen, int flags) {
     int attempt = 0;
     int wbytes;
@@ -50,6 +62,18 @@ int __robust_read(int fd, uint8_t* buf, size_t maxread) {
     int rbytes;
     while (attempt++ < 5) {
         rbytes = read(fd, buf, maxread);
+        if (rbytes < 0 && (errno == EINTR || errno == EAGAIN))
+            continue;
+        break;
+    }
+    return rbytes;
+}
+
+int __robust_SSL_read(SSL* ssl, void* buf, int maxread) {
+    int attempt = 0;
+    int rbytes;
+    while (attempt++ < 5) {
+        rbytes = SSL_read(ssl, buf, maxread);
         if (rbytes < 0 && (errno == EINTR || errno == EAGAIN))
             continue;
         break;
