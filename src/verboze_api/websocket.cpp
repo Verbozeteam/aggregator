@@ -23,8 +23,9 @@ static int connect_ws_client(std::string token) {
     std::string address = "";
 
     std::string url = ConfigManager::get<std::string>("verboze-url");
+    std::string protocol = ConfigManager::get<std::string>("ws-protocol");
     if (url.size() > 0) {
-        url = "wss://" + url;
+        url = protocol + "://" + url;
         if (url.at(url.size()-1) == '/')
             url = url.substr(0, url.size() -1);
     }

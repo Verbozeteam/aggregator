@@ -100,7 +100,7 @@ static std::string concat_url(std::string u1, std::string u2) {
 }
 
 static std::string make_request_url(std::string path) {
-    return concat_url("http://" + ConfigManager::get<std::string>("verboze-url"), path);
+    return concat_url(ConfigManager::get<std::string>("http-protocol")+"://" + ConfigManager::get<std::string>("verboze-url"), path);
 }
 
 static int connect_http_client(
