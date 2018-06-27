@@ -107,6 +107,7 @@ static int connect_http_client(
         std::string token,
         std::string method,
         std::string url,
+        std::vector<std::pair<std::string, std::string>> headers,
         std::vector<std::vector<char>> params,
         HttpResponseCallback callback) {
     int port = 80;
@@ -149,7 +150,11 @@ static int connect_http_client(
 
     SENT_HTTP_REQUEST* req = new SENT_HTTP_REQUEST;
     req->callback = callback;
+    for (int i = 0; i < headers.size(); i++)
+        req->headers.push_back(std::pair<std::string, std::string>(headers[i].first+":", headers[i].second));
     req->headers.push_back(std::pair<std::string, std::string>("content-type:", "multipart/form-data; boundary="+boundary));
+    if (token.size() > 0)
+        req->headers.push_back(std::pair<std::string, std::string>("authorization:", "token " + token));
     for (int i = 0; i < params.size(); i++) {
         std::string boundary_line = "--" + boundary + "\r\n";
         req->body.insert(std::end(req->body), std::begin(boundary_line), std::end(boundary_line));
@@ -315,7 +320,7 @@ int http_callback_broker(struct lws *wsi, enum lws_callback_reasons reason, void
 }
 
 void VerbozeAPI::Endpoints::RegisterRoom(std::string room_id, HttpResponseCallback callback) {
-    connect_http_client(m_connection_token, "POST", make_request_url("register_room"), {
+    connect_http_client(m_connection_token, "POST", make_request_url("register_room"), {}, {
             param_string("room_id", room_id),
         }, callback);
 }
