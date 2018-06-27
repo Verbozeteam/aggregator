@@ -70,12 +70,7 @@ bool AggregatorClient::OnMessage(json msg) {
         }
     }
     if (old_room_id != m_room_id && m_room_id != "")
-        VerbozeAPI::Endpoints::RegisterRoom(m_room_id, [](VerbozeHttpResponse response) {
-            if (response.raw_data.size())
-                LOG(info) << response.raw_data.data();
-            LOG(info) << response.data.dump(4);
-            LOG(info) << "Code " << response.status_code;
-        });
+        VerbozeAPI::Endpoints::RegisterRoom(m_room_id);
 
     if (changed_state) {
         /** Put the __room_names stamp on the message */
