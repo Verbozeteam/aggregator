@@ -22,6 +22,9 @@ public:
     VerbozeHttpResponse() : status_code(200) {}
     VerbozeHttpResponse(int st, json d) : status_code(st), data(d) {}
 
+    /** Requested URL */
+    std::string url;
+
     /** HTTP status code returned */
     int status_code;
 
@@ -80,7 +83,16 @@ public:
     static void SetCommandCallback(CommandCallback callback);
 
     struct Endpoints {
-        static void RegisterRoom(std::string room_id, HttpResponseCallback callback = nullptr);
+        static void DefaultResponseHandler(VerbozeHttpResponse r);
+
+        static void RegisterRoom(std::string room_id,
+                                 std::string room_name,
+                                 std::string interface,
+                                 std::string ip,
+                                 int port,
+                                 int type,
+                                 std::string data,
+                                 HttpResponseCallback callback = DefaultResponseHandler);
     };
 };
 

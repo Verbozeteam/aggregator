@@ -149,6 +149,7 @@ static int connect_http_client(
     std::string boundary = boundary_buf;
 
     SENT_HTTP_REQUEST* req = new SENT_HTTP_REQUEST;
+    req->response.url = url;
     req->callback = callback;
     for (int i = 0; i < headers.size(); i++)
         req->headers.push_back(std::pair<std::string, std::string>(headers[i].first+":", headers[i].second));
@@ -319,8 +320,37 @@ int http_callback_broker(struct lws *wsi, enum lws_callback_reasons reason, void
 	return lws_callback_http_dummy(wsi, reason, user, in, len);
 }
 
-void VerbozeAPI::Endpoints::RegisterRoom(std::string room_id, HttpResponseCallback callback) {
-    connect_http_client(m_connection_token, "POST", make_request_url("register_room"), {}, {
+void VerbozeAPI::Endpoints::DefaultResponseHandler(VerbozeHttpResponse response) {
+    std::string log = "HTTP " + response.url + " (" + std::to_string(response.status_code) + "): ";
+
+    if (!response.data.is_null())
+        log += response.data.dump(4);
+    else if (response.raw_data.size())
+        log += response.raw_data.data();
+    
+    if (response.status_code == 200)
+        LOG(trace) << log;
+    else
+        LOG(warning) << log;
+}
+
+void VerbozeAPI::Endpoints::RegisterRoom(
+    std::string room_id,
+    std::string room_name,
+    std::string interface,
+    std::string ip,
+    int port,
+    int type,
+    std::string data,
+    HttpResponseCallback callback) {
+
+    connect_http_client(m_connection_token, "POST", make_request_url("api/rooms/"), {}, {
             param_string("room_id", room_id),
+            param_string("room_name", room_name),
+            param_string("interface", interface),
+            param_string("ip", ip),
+            param_int("port", port),
+            param_int("type", type),
+            param_string("data", data),
         }, callback);
 }
