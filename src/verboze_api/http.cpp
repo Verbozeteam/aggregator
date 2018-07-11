@@ -328,7 +328,7 @@ void VerbozeAPI::Endpoints::DefaultResponseHandler(VerbozeHttpResponse response)
     else if (response.raw_data.size())
         log += response.raw_data.data();
     
-    if (response.status_code == 200)
+    if (response.status_code >= 200 && response.status_code < 300)
         LOG(trace) << log;
     else
         LOG(warning) << log;
@@ -345,7 +345,7 @@ void VerbozeAPI::Endpoints::RegisterRoom(
     HttpResponseCallback callback) {
 
     connect_http_client(m_connection_token, "POST", make_request_url("api/rooms/"), {}, {
-            param_string("room_id", room_id),
+            param_string("identifier", room_id),
             param_string("room_name", room_name),
             param_string("interface", interface),
             param_string("ip", ip),
