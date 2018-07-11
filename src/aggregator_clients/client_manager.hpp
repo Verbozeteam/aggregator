@@ -27,8 +27,12 @@ class ClientManager {
         std::string token;
         /** One-time-use password */
         std::string password;
+        /** Username of this Hub */
+        std::string username;
+        /** Token type (always 2) */
+        int token_type;
 
-        AUTHENTICATION_STRUCT(std::string tok) : token(tok), password("") {}
+        AUTHENTICATION_STRUCT(std::string tok) : token(tok), password(""), username("Hub"), token_type(2) {}
 
         /**
          * Retrieves the json used for authentication message and clears the stored password
@@ -40,6 +44,8 @@ class ClientManager {
                 {"authentication", {
                     {"token", token},
                     {"password", pw},
+                    {"username", username},
+                    {"token_type", token_type},
                 }},
             };
         }
