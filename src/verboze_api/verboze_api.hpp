@@ -5,6 +5,7 @@
 #include <thread>
 #include <queue>
 #include <sys/time.h>
+#include <functional>
 
 #include <libwebsockets.h>
 
@@ -12,7 +13,7 @@
 using json = nlohmann::json;
 
 typedef void (*CommandCallback) (json);
-typedef void (*HttpResponseCallback) (class VerbozeHttpResponse);
+typedef std::function<void(class VerbozeHttpResponse)> HttpResponseCallback;
 
 /**
  * Represents a response from a verboze API call
@@ -70,6 +71,11 @@ public:
      * Shut down and clean up resources
      */
     static void Cleanup();
+
+    /**
+     * Converts a token to a URL for the websocket stream endpoint (e.g. wss://www.verboze.com/stream/<token>/)
+     */
+    static std::string TokenToStreamURL(std::string token);
 
     /**
      * Send a command over websockets

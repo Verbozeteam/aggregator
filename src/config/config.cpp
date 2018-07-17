@@ -28,6 +28,7 @@ int ConfigManager::LoadFromCommandline(int argc, char* argv[]) {
         ("ssl-key,K", po::value<std::string>()->default_value(""), "Path to a file containing the SSL key")
         ("ssl-cert,C", po::value<std::string>()->default_value(""), "Path to a file containing the SSL certificate")
         ("credentials-file,c", po::value<std::string>()->default_value(""), "Path to a file containing credentials for the aggregator clients. The file must be formatted such that each two lines are one for the client 'key' (name:ip:port) and one for the token")
+        ("credentials-password,P", po::value<std::string>()->default_value(""), "Password used to authenticate with middlewares.")
         ("http-protocol,H", po::value<std::string>()->default_value("https"), "Either http or https")
         ("ws-protocol,W", po::value<std::string>()->default_value("wss"), "Either ws or wss")
     ;

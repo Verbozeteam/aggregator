@@ -16,12 +16,7 @@ namespace ws_global {
     struct lws* g_client_wsi = nullptr;
 };
 
-static int connect_ws_client(std::string token) {
-    int port = 80;
-    bool is_ssl = false;
-    std::string path = "";
-    std::string address = "";
-
+std::string VerbozeAPI::TokenToStreamURL(std::string token) {
     std::string url = ConfigManager::get<std::string>("verboze-url");
     std::string protocol = ConfigManager::get<std::string>("ws-protocol");
     if (url.size() > 0) {
@@ -30,7 +25,15 @@ static int connect_ws_client(std::string token) {
             url = url.substr(0, url.size() -1);
     }
     url += "/stream/" + token;
+    return url;
+}
 
+static int connect_ws_client(std::string token) {
+    int port = 80;
+    bool is_ssl = false;
+    std::string path = "";
+    std::string address = "";
+    std::string url = VerbozeAPI::TokenToStreamURL(token);
     std::string new_url = url;
 
     if (new_url.find("ws://") == 0) {

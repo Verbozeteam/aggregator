@@ -19,6 +19,8 @@ using json = nlohmann::json;
 #define CONTROL_CODE_GET_BLUEPRINT      0
 #define CONTROL_CODE_GET_THING_STATE    1
 #define CONTROL_CODE_SET_LISTENERS      2
+#define CONTROL_CODE_RESET_QRCODE       3
+#define CONTROL_CODE_SET_QRCODE         4
 
 class ClientManager {
     /** Holds authentication  */
@@ -103,10 +105,10 @@ class ClientManager {
     /**
      * Generates a new authentication token and stores it in m_credentials_map and
      * in the credentials file (if provided).
-     * @param client  Client to associate the token with
+     * @param dev     Discovered device info to associate token with
      * @return        Newly generated authentication token
      */
-    static std::string __generateNewAuthenticationToken(AggregatorClient* client);
+    static std::string __generateNewAuthenticationToken(DISCOVERED_DEVICE dev);
 
     /**
      * Called by the discovery system (from another thread) when a device is discovered.
@@ -150,5 +152,12 @@ public:
      * @param client  Client to remove its credentials
      */
     static void RemoveClientCredentials(AggregatorClient* client);
+
+    /*
+     * Called when an aggregator client sends a control message
+     * @param client_from  Client that sent the message
+     * @param command      Command sent by the client
+     */
+    static void OnControlCommandFromAggregatorClient(AggregatorClient* client_from, json command);
 };
 

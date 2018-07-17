@@ -91,7 +91,7 @@ static std::string concat_url(std::string u1, std::string u2) {
         return u2;
     else if (u2.size() == 0)
         return u1;
-    
+
     if (u1.at(u1.size()-1) == '/')
         u1 = u1.substr(0, u1.size()-1);
     if (u2.at(0) == '/')
@@ -327,7 +327,7 @@ void VerbozeAPI::Endpoints::DefaultResponseHandler(VerbozeHttpResponse response)
         log += response.data.dump(4);
     else if (response.raw_data.size())
         log += response.raw_data.data();
-    
+
     if (response.status_code >= 200 && response.status_code < 300)
         LOG(trace) << log;
     else

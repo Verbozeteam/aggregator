@@ -28,6 +28,32 @@ void ClientManager::__onDeviceDiscovered(DISCOVERED_DEVICE dev) {
     }
 }
 
+void ClientManager::OnControlCommandFromAggregatorClient(AggregatorClient* client_from, json command) {
+    std::string client_name = client_from->GetID();
+    if (command.find("code") == command.end()) {
+        LOG(warning) << "Received control command from " << client_name << " without code " << command.dump();
+        return;
+    }
+    int code = command["code"];
+
+    switch (code) {
+        case CONTROL_CODE_RESET_QRCODE:
+            // forward it to Verboze, stamp it so Verboze knows who sent it
+            command["__reply_target"] = client_name;
+            VerbozeAPI::SendCommand(command);
+            break;
+
+        case CONTROL_CODE_GET_BLUEPRINT:
+        case CONTROL_CODE_GET_THING_STATE:
+        case CONTROL_CODE_SET_LISTENERS:
+        case CONTROL_CODE_SET_QRCODE:
+            LOG(warning) << "Received unsupported control code " << code << " from " << client_name;
+            break;
+        default:
+            LOG(warning) << "Received unknown control code " << code << " from " << client_name;
+    }
+}
+
 void ClientManager::__onControlCommandFromVerboze(json command, int code, AggregatorClient* target_room) {
     auto reply_target = command.find("__reply_target");
 
@@ -55,6 +81,13 @@ void ClientManager::__onControlCommandFromVerboze(json command, int code, Aggreg
         } case CONTROL_CODE_SET_LISTENERS: {
             /** CANNOT BE IMPLEMENTED HERE! (Verboze listens to all) */
             break;
+        } case CONTROL_CODE_RESET_QRCODE: {
+            /** CANNOT BE IMPLEMENTED HERE! (This is only sent by clients...) */
+        } case CONTROL_CODE_SET_QRCODE: {
+            // forward the new QR code to the room
+            if (command.find("qr-code") != command.end())
+                command["qr-code"] = VerbozeAPI::TokenToStreamURL(command["qr-code"]);
+            target_room->Write(command);
         }
     }
 }
@@ -146,6 +179,13 @@ bool ClientManager::__clientCanAuthenticate(DISCOVERED_DEVICE dev) {
     std::string client_key = __getClientCredentialsMapKey(dev);
     auto it = m_credentials_map.find(client_key);
     if (it == m_credentials_map.end()) {
+        std::string pw = ConfigManager::get<std::string>("credentials-password");
+        if (pw != "") {
+            // Generate a new token and set its password since we know what password to always use
+            __generateNewAuthenticationToken(dev);
+            m_credentials_map.find(client_key)->second.password = pw;
+            return true;
+        }
         // this client has no authentication info, add it to the m_clients_require_password (if it doesn't exist)
         return __markClientRequiresPassword(dev);
     }
@@ -175,8 +215,11 @@ std::string ClientManager::__getClientCredentialsMapKey(DISCOVERED_DEVICE dev) {
 
 bool ClientManager::__markClientRequiresPassword(DISCOVERED_DEVICE dev) {
     std::string client_key = __getClientCredentialsMapKey(dev);
-    if (m_clients_require_password.find(client_key) == m_clients_require_password.end())
+    if (m_clients_require_password.find(client_key) == m_clients_require_password.end()) {
+        LOG(debug) << "Client " << dev.name << " (" << dev.ip << ":" << dev.port << ") requires password to authenticate";
         m_clients_require_password.insert(std::pair<std::string, DISCOVERED_DEVICE>(client_key, dev));
+    }
+
     return false;
 }
 
@@ -216,7 +259,7 @@ void ClientManager::__writeCredentialsMap() {
     }
 }
 
-std::string ClientManager::__generateNewAuthenticationToken(AggregatorClient* client) {
+std::string ClientManager::__generateNewAuthenticationToken(DISCOVERED_DEVICE dev) {
     // letters a-z, A-Z, and numbers 0-9
     const int num_symbols = 26 * 2 + 10;
     const int token_length = 64;
@@ -232,7 +275,7 @@ std::string ClientManager::__generateNewAuthenticationToken(AggregatorClient* cl
             token += (char)('0' + (r-26*2));
     }
 
-    std::string key = __getClientCredentialsMapKey(client->m_discovery_info);
+    std::string key = __getClientCredentialsMapKey(dev);
     m_credentials_map.insert(std::pair<std::string, ClientManager::AUTHENTICATION_STRUCT>(key, AUTHENTICATION_STRUCT(token)));
     __writeCredentialsMap();
 

@@ -55,7 +55,12 @@ bool AggregatorClient::OnMessage(json msg) {
         return false;
     }
 
-    if (msg.find("thing") != msg.end()) // don't react to control messages (should never happen...)
+    if (msg.find("code") != msg.end()) {
+        ClientManager::OnControlCommandFromAggregatorClient(this, msg);
+        return true;
+    }
+
+    if (msg.find("thing") != msg.end()) // don't react to thing controls messages (should never happen...)
         return true;
 
     /** Perform caching */
@@ -69,7 +74,7 @@ bool AggregatorClient::OnMessage(json msg) {
             m_room_id = "";
         }
     }
-    if (old_room_id != m_room_id && m_room_id != "")
+    if (old_room_id != m_room_id && m_room_id != "") {
         VerbozeAPI::Endpoints::RegisterRoom(
             m_room_id,
             m_discovery_info.name,
@@ -79,6 +84,7 @@ bool AggregatorClient::OnMessage(json msg) {
             m_discovery_info.type,
             m_discovery_info.data
         );
+    }
 
     if (changed_state) {
         /** Put the __room_names stamp on the message */
