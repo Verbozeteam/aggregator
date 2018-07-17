@@ -29,13 +29,15 @@ struct lws_context* VerbozeAPI::GetLWSContext() {
 
 void VerbozeAPI::__lws_thread() {
     int n = 0;
-	while (!m_stop_thread && n >= 0)
+	while (!m_stop_thread && n >= 0) {
+		__updateHTTP();
 		n = lws_service(m_lws_context, 1000);
+	}
 }
 
 int VerbozeAPI::Initialize() {
     m_connection_token = ConfigManager::get<std::string>("verboze-token");
-    
+
 	lws_set_log_level(0, NULL);
 
 	struct lws_context_creation_info info;

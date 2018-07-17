@@ -57,6 +57,8 @@ class VerbozeAPI {
      */
     static void __lws_thread();
 
+    static void __updateHTTP();
+
 public:
     /** Retrieves the LWS context */
     static struct lws_context* GetLWSContext();

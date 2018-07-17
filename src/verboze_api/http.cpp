@@ -6,7 +6,7 @@
 
 std::vector<char> create_param(std::vector<std::string> headers, std::vector<char> data) {
     std::vector<char> ret;
-    for (int i = 0; i < headers.size(); i++) {
+    for (size_t i = 0; i < headers.size(); i++) {
         ret.insert(std::end(ret), std::begin(headers[i]), std::end(headers[i]));
         ret.push_back('\r'); ret.push_back('\n');
     }
@@ -67,9 +67,10 @@ struct SENT_HTTP_REQUEST {
 };
 
 std::vector<SENT_HTTP_REQUEST*> g_pending_http_requests;
+std::vector<std::function<void()>> g_pending_http_connects;
 
 SENT_HTTP_REQUEST* get_sent_http_request(struct lws* client) {
-    for (int i = 0; i < g_pending_http_requests.size(); i++) {
+    for (size_t i = 0; i < g_pending_http_requests.size(); i++) {
         if (g_pending_http_requests[i]->lws_client == client)
             return g_pending_http_requests[i];
     }
@@ -77,7 +78,7 @@ SENT_HTTP_REQUEST* get_sent_http_request(struct lws* client) {
 }
 
 void delete_sent_http_request(struct lws* client) {
-    for (int i = 0; i < g_pending_http_requests.size(); i++) {
+    for (size_t i = 0; i < g_pending_http_requests.size(); i++) {
         if (g_pending_http_requests[i]->lws_client == client) {
             delete g_pending_http_requests[i];
             g_pending_http_requests.erase(g_pending_http_requests.begin() + i);
@@ -151,12 +152,12 @@ static int connect_http_client(
     SENT_HTTP_REQUEST* req = new SENT_HTTP_REQUEST;
     req->response.url = url;
     req->callback = callback;
-    for (int i = 0; i < headers.size(); i++)
+    for (size_t i = 0; i < headers.size(); i++)
         req->headers.push_back(std::pair<std::string, std::string>(headers[i].first+":", headers[i].second));
     req->headers.push_back(std::pair<std::string, std::string>("content-type:", "multipart/form-data; boundary="+boundary));
     if (token.size() > 0)
         req->headers.push_back(std::pair<std::string, std::string>("authorization:", "token " + token));
-    for (int i = 0; i < params.size(); i++) {
+    for (size_t i = 0; i < params.size(); i++) {
         std::string boundary_line = "--" + boundary + "\r\n";
         req->body.insert(std::end(req->body), std::begin(boundary_line), std::end(boundary_line));
         req->body.insert(std::end(req->body), std::begin(params[i]), std::end(params[i]));
@@ -188,7 +189,7 @@ static int connect_http_client(
     int ret = !lws_client_connect_via_info(&info);
 
     if (ret != 0) {
-        for (int i = 0; i < g_pending_http_requests.size(); i++) {
+        for (size_t i = 0; i < g_pending_http_requests.size(); i++) {
             if (g_pending_http_requests[i] == req) {
                 g_pending_http_requests.erase(g_pending_http_requests.begin() + i);
                 break;
@@ -235,7 +236,7 @@ int http_callback_broker(struct lws *wsi, enum lws_callback_reasons reason, void
         } else {
             size_t prev_size = request->response.raw_data.size();
             request->response.raw_data.resize(prev_size + len);
-            for (int i = 0; i < len; i++)
+            for (size_t i = 0; i < len; i++)
                 request->response.raw_data[prev_size+i] = ((char*)in)[i];
         }
 		return 0;
@@ -268,7 +269,7 @@ int http_callback_broker(struct lws *wsi, enum lws_callback_reasons reason, void
             return 1;
         } else {
             uint8_t* buffer_end = (*(uint8_t**)in) + len - 1;
-            for (int i = 0; i < request->headers.size(); i++) {
+            for (size_t i = 0; i < request->headers.size(); i++) {
                 std::string name = request->headers[i].first;
                 std::string value = request->headers[i].second;
                 if (lws_add_http_header_by_name(wsi,
@@ -320,6 +321,12 @@ int http_callback_broker(struct lws *wsi, enum lws_callback_reasons reason, void
 	return lws_callback_http_dummy(wsi, reason, user, in, len);
 }
 
+void VerbozeAPI::__updateHTTP() {
+    for (size_t i = 0; i < g_pending_http_connects.size(); i++)
+        g_pending_http_connects[i]();
+    g_pending_http_connects.clear();
+}
+
 void VerbozeAPI::Endpoints::DefaultResponseHandler(VerbozeHttpResponse response) {
     std::string log = "HTTP " + response.url + " (" + std::to_string(response.status_code) + "): ";
 
@@ -344,13 +351,20 @@ void VerbozeAPI::Endpoints::RegisterRoom(
     std::string data,
     HttpResponseCallback callback) {
 
-    connect_http_client(m_connection_token, "POST", make_request_url("api/rooms/"), {}, {
-            param_string("identifier", room_id),
-            param_string("room_name", room_name),
-            param_string("interface", interface),
-            param_string("ip", ip),
-            param_int("port", port),
-            param_int("type", type),
-            param_string("data", data),
-        }, callback);
+
+    std::string token = m_connection_token;
+    g_pending_http_connects.push_back(
+        [token, room_id, room_name, interface, ip, port, type, data, callback]() {
+            connect_http_client(token, "POST", make_request_url("api/rooms/"), {}, {
+                    param_string("identifier", room_id),
+                    param_string("room_name", room_name),
+                    param_string("interface", interface),
+                    param_string("ip", ip),
+                    param_int("port", port),
+                    param_int("type", type),
+                    param_string("data", data),
+                }, callback);
+        }
+    );
+    lws_cancel_service(GetLWSContext());
 }
