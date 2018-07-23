@@ -6,6 +6,7 @@ std::string VerbozeAPI::m_connection_token = "";
 struct lws_context* VerbozeAPI::m_lws_context = nullptr;
 std::thread VerbozeAPI::m_lws_thread;
 bool VerbozeAPI::m_stop_thread = false;
+milliseconds VerbozeAPI::m_next_ws_heartbeat = milliseconds(0);
 
 static const struct lws_protocols g_protocols[] = {
 	{
@@ -31,7 +32,16 @@ void VerbozeAPI::__lws_thread() {
     int n = 0;
 	while (!m_stop_thread && n >= 0) {
 		__updateHTTP();
-		n = lws_service(m_lws_context, 1000);
+
+    	milliseconds cur_time = __get_time_ms();
+		if (cur_time >= m_next_ws_heartbeat) {
+			m_next_ws_heartbeat = cur_time + milliseconds(WEBSOCKET_HEARTBEAT_INTERVAL);
+			if (IsWebsocketConnected())
+				SendCommand(json({}));
+		}
+
+		milliseconds timeout = std::min(milliseconds(1000), m_next_ws_heartbeat - cur_time);
+		n = lws_service(m_lws_context, timeout.count());
 	}
 }
 

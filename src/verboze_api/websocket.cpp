@@ -16,6 +16,10 @@ namespace ws_global {
     struct lws* g_client_wsi = nullptr;
 };
 
+bool VerbozeAPI::IsWebsocketConnected() {
+    return ws_global::g_is_connected;
+}
+
 std::string VerbozeAPI::TokenToStreamURL(std::string token) {
     std::string url = ConfigManager::get<std::string>("verboze-url");
     std::string protocol = ConfigManager::get<std::string>("ws-protocol");

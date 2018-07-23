@@ -36,3 +36,4 @@ credentials
 *.exe
 *.out
 *.app
+.vscode/

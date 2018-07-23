@@ -1,5 +1,7 @@
 #pragma once
 
+#include "utilities/time_utilities.hpp"
+
 #include <string>
 #include <mutex>
 #include <thread>
@@ -14,6 +16,8 @@ using json = nlohmann::json;
 
 typedef void (*CommandCallback) (json);
 typedef std::function<void(class VerbozeHttpResponse)> HttpResponseCallback;
+
+#define WEBSOCKET_HEARTBEAT_INTERVAL 10000
 
 /**
  * Represents a response from a verboze API call
@@ -51,6 +55,8 @@ class VerbozeAPI {
     static std::thread m_lws_thread;
     /** Flag to stop the g_ws_thread */
     static bool m_stop_thread;
+    /** Next time to send websocket heartbeat */
+    static milliseconds m_next_ws_heartbeat;
 
     /**
      * Entry point for a thread that will do lws services (connection, writing, reading, etc...)
@@ -73,6 +79,11 @@ public:
      * Shut down and clean up resources
      */
     static void Cleanup();
+
+    /**
+     * Checks whether or not websocket is connected
+     */
+    static bool IsWebsocketConnected();
 
     /**
      * Converts a token to a URL for the websocket stream endpoint (e.g. wss://www.verboze.com/stream/<token>/)

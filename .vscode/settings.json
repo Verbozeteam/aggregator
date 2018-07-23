@@ -61,6 +61,8 @@
         "string_view": "cpp",
         "vector": "cpp",
         "rope": "cpp",
-        "__locale": "cpp"
+        "__locale": "cpp",
+        "bitset": "cpp",
+        "chrono": "cpp"
     }
 }
