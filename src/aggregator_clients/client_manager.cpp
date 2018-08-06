@@ -15,12 +15,11 @@ std::unordered_map<std::string, DISCOVERED_DEVICE> ClientManager::m_clients_requ
 
 void ClientManager::__onDeviceDiscovered(DISCOVERED_DEVICE dev) {
     // If the middleware on that IP is not registered, attempt to register it
-    if (dev.type == 3) { // type 3 is a room
-        if (!SocketCluster::IsClientRegistered(dev.ip+":"+std::to_string(dev.port)) && __clientCanAuthenticate(dev)) {
-            SocketClientPtr sc = SocketClient::Create<AggregatorClient> (dev.ip, dev.port);
+    if (dev.type == 3 || dev.type == 8) { // type 3 is a middleware, 8 is a secure middleware
+        if (!SocketCluster::IsClientRegistered(dev) && __clientCanAuthenticate(dev)) {
+            SocketClientPtr sc = SocketClient::Create<AggregatorClient> (dev);
             if (sc) {
                 AggregatorClient* ac = (AggregatorClient*)sc.get();
-                ac->m_discovery_info = dev;
                 __authenticateClient(ac); // authenticate
                 sc->Write("{\"code\": 0}"_json); // Request blueprint
             }

@@ -29,7 +29,7 @@ class AggregatorClient : public SocketClient {
     DISCOVERED_DEVICE m_discovery_info;
 
 protected:
-    AggregatorClient(int fd, std::string ip, int port);
+    AggregatorClient(int fd, DISCOVERED_DEVICE device);
 
 public:
 

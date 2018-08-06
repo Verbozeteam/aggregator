@@ -43,9 +43,10 @@ int SocketClient::__openConnection(std::string ip, int port) {
     return sockfd;
 }
 
-SocketClient::SocketClient(int fd, std::string ip, int port) : m_client_fd(fd), m_ip(ip), m_port(port), m_identifier(ip+":"+std::to_string(port)) {
+SocketClient::SocketClient(int fd, DISCOVERED_DEVICE device) : m_client_fd(fd), m_ip(device.ip), m_port(device.port), m_identifier(device.name) {
+    bool requires_ssl = SocketCluster::DeviceRequiresSecureConnection(device);
     m_ssl = nullptr;
-    if (SocketCluster::m_ssl_context) {
+    if (SocketCluster::m_ssl_context && requires_ssl) {
         m_ssl = SSL_new(SocketCluster::m_ssl_context);
         SSL_set_fd(m_ssl, fd);
         if (SSL_connect(m_ssl) == -1) {
@@ -54,6 +55,8 @@ SocketClient::SocketClient(int fd, std::string ip, int port) : m_client_fd(fd), 
             SSL_free(m_ssl);
             m_ssl = nullptr;
         }
+    } else if (requires_ssl) {
+        LOG(warning) << "Attempting to connect to SSL client " << device.name << " but no SSL key/cert available";
     }
 }
 
@@ -223,7 +226,7 @@ void SocketCluster::__thread_entry() {
 
 void SocketCluster::RegisterClient(SocketClientPtr client) {
     m_clients_mutex.lock(); // write (exclusive) lock
-    LOG(info) << "Registering client " << client->m_ip << " (fd " << client->m_client_fd << ")";
+    LOG(info) << "Registering client " << client->m_ip << " (fd " << client->m_client_fd << ", " << (client->m_ssl ? "using SSL" : "not using SSL") << ")";
     m_clients.insert(std::pair<int, SocketClientPtr>(client->m_client_fd, client));
     m_clients_by_id.insert(std::pair<std::string, SocketClientPtr>(client->m_identifier, client));
     m_clients_mutex.unlock();
@@ -334,9 +337,9 @@ void SocketCluster::Kill() {
     Notify();
 }
 
-bool SocketCluster::IsClientRegistered(std::string id) {
+bool SocketCluster::IsClientRegistered(DISCOVERED_DEVICE device) {
     m_clients_mutex.lock_shared(); // read lock
-    bool ret = m_clients_by_id.find(id) != m_clients_by_id.end();
+    bool ret = m_clients_by_id.find(device.name) != m_clients_by_id.end();
     m_clients_mutex.unlock_shared();
     return ret;
 }
@@ -355,4 +358,8 @@ std::vector<SocketClientPtr> SocketCluster::GetClientsList() {
         clients.push_back(it->second);
     m_clients_mutex.unlock_shared();
     return clients;
+}
+
+bool SocketCluster::DeviceRequiresSecureConnection(DISCOVERED_DEVICE device) {
+    return device.type == 8;
 }

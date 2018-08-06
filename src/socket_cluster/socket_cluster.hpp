@@ -1,5 +1,7 @@
 #pragma once
 
+#include "aggregator_clients/discovery_protocol.hpp"
+
 // openSSL
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
@@ -100,7 +102,7 @@ public:
      * @param  id ID to check against
      * @return    true iff a client is registered with the given ID
      */
-    static bool IsClientRegistered(std::string id);
+    static bool IsClientRegistered(DISCOVERED_DEVICE device);
 
     /**
      * Retrieves a registered client by its ID
@@ -113,6 +115,12 @@ public:
      * @return  a list of clients registered
      */
     static std::vector<SocketClientPtr> GetClientsList();
+
+    /**
+     * Checks if a device requires an SSL connection
+     * @param  device  Device to check
+     */
+    static bool DeviceRequiresSecureConnection(DISCOVERED_DEVICE device);
 };
 
 
@@ -157,11 +165,11 @@ protected:
     /**
      * Initializes variables
      */
-    SocketClient(int fd, std::string ip, int port);
+    SocketClient(int fd, DISCOVERED_DEVICE device);
 
     std::string m_ip; // IP address of the client (x.x.x.x format)
     int m_port; // Port of the client
-    std::string m_identifier; // IP:port string
+    std::string m_identifier; // Name of the device
 
 public:
     /**
@@ -171,11 +179,14 @@ public:
      * @returns     The new client created, nullptr on failure
      */
     template<typename T>
-    static SocketClientPtr Create(std::string ip, int port) {
-        int fd = __openConnection(ip, port);
+    static SocketClientPtr Create(DISCOVERED_DEVICE device) {
+        if (SocketCluster::DeviceRequiresSecureConnection(device) && !SocketCluster::m_ssl_context)
+            return nullptr;
+
+        int fd = __openConnection(device.ip, device.port);
         if (fd <= 0)
             return nullptr;
-        SocketClientPtr p = SocketClientPtr(new T(fd, ip, port));
+        SocketClientPtr p = SocketClientPtr(new T(fd, device));
         SocketCluster::RegisterClient(p);
         return p;
     }
