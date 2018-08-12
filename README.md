@@ -32,5 +32,8 @@ Repository can be found [here](https://github.com/warmcat/libwebsockets).
     sudo make install
 ```
 
+# Generating self-signed certificate
+Command: `openssl req -newkey rsa:2048 -nodes -keyout sslkey.pem -x509 -days 7300 -out sslcert.pem -subj '/CN=www.verboze.com/O=Verboze QSTP-LLC./C=QA'`
+
 # Bugs
 - I don't know
