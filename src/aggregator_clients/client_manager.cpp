@@ -85,7 +85,7 @@ void ClientManager::__onControlCommandFromVerboze(json command, int code, Aggreg
         } case CONTROL_CODE_SET_QRCODE: {
             // forward the new QR code to the room
             if (command.find("qr-code") != command.end())
-                command["qr-code"] = VerbozeAPI::TokenToStreamURL(command["qr-code"]);
+                command["qr-code"] = VerbozeAPI::TokenToStreamURL(command["qr-code"], true);
             target_room->Write(command);
         }
     }

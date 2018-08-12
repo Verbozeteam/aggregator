@@ -86,9 +86,10 @@ public:
     static bool IsWebsocketConnected();
 
     /**
-     * Converts a token to a URL for the websocket stream endpoint (e.g. wss://www.verboze.com/stream/<token>/)
+     * Converts a token to a URL for the websocket stream endpoint (e.g. wss://www.verboze.com/stream/<token>).
+     * If qrcode is set to true, the url returned will be similar to https://www.verboze.com/qrcode/<token>.
      */
-    static std::string TokenToStreamURL(std::string token);
+    static std::string TokenToStreamURL(std::string token, bool qrcode = false);
 
     /**
      * Send a command over websockets

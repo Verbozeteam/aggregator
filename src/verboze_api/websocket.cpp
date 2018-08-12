@@ -20,16 +20,25 @@ bool VerbozeAPI::IsWebsocketConnected() {
     return ws_global::g_is_connected;
 }
 
-std::string VerbozeAPI::TokenToStreamURL(std::string token) {
+std::string VerbozeAPI::TokenToStreamURL(std::string token, bool qrcode) {
     std::string url = ConfigManager::get<std::string>("verboze-url");
-    std::string protocol = ConfigManager::get<std::string>("ws-protocol");
-    if (url.size() > 0) {
-        url = protocol + "://" + url;
-        if (url.at(url.size()-1) == '/')
-            url = url.substr(0, url.size() -1);
+    std::string wsprotocol = ConfigManager::get<std::string>("ws-protocol");
+    std::string httpprotocol = ConfigManager::get<std::string>("http-protocol");
+    if (qrcode) {
+        std::string ret = httpprotocol + "://" + url;
+        if (ret.at(ret.size()-1) != '/')
+            ret += '/';
+        ret += "qrcode/" + token + "/";
+        return ret;
+    } else {
+        if (url.size() > 0) {
+            url = wsprotocol + "://" + url;
+            if (url.at(url.size()-1) == '/')
+                url = url.substr(0, url.size() -1);
+        }
+        url += "/stream/" + token;
+        return url;
     }
-    url += "/stream/" + token;
-    return url;
 }
 
 static int connect_ws_client(std::string token) {
