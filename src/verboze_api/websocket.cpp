@@ -7,6 +7,8 @@ namespace ws_global {
     CommandCallback g_command_callback = nullptr;
     /** mutex to protext g_is_connected and data queue */
     std::mutex g_connection_mutex;
+    /** whether a connection is being established */
+    bool g_is_connecting = false;
     /** whether connection is established */
     bool g_is_connected = false;
     /** queue of to-be-sent websocket messages */
@@ -42,6 +44,9 @@ std::string VerbozeAPI::TokenToStreamURL(std::string token, bool qrcode) {
 }
 
 static int connect_ws_client(std::string token) {
+    if (ws_global::g_is_connecting)
+        return 0;
+
     int port = 80;
     bool is_ssl = false;
     std::string path = "";
@@ -92,6 +97,7 @@ static int connect_ws_client(std::string token) {
 
 	info.protocol = "lws-broker";
 
+    ws_global::g_is_connecting = true;
     return !lws_client_connect_via_info(&info);
 }
 
@@ -111,6 +117,7 @@ int websocket_callback_broker(struct lws* wsi, enum lws_callback_reasons reason,
 
 	case LWS_CALLBACK_CLIENT_CLOSED:
 		LOG(info) << "Websocket client closed";
+        ws_global::g_is_connecting = false;
         ws_global::g_connection_mutex.lock();
         ws_global::g_is_connected = false;
         ws_global::g_connection_mutex.unlock();
@@ -119,6 +126,7 @@ int websocket_callback_broker(struct lws* wsi, enum lws_callback_reasons reason,
 		break;
 
 	case LWS_CALLBACK_CLIENT_ESTABLISHED:
+        ws_global::g_is_connecting = false;
         ws_global::g_connection_mutex.lock();
         ws_global::g_is_connected = true;
         if (ws_global::g_message_queue.size())
