@@ -22,7 +22,7 @@ bool __merge_json(json* base, json new_data) {
                 json* sub_base = &existing_entry.value();
                 if (sub_base->is_object() && val.is_object())
                     is_changed = is_changed || __merge_json(sub_base, val);
-                else if (val != *sub_base)
+                else// if (val != *sub_base) <-- this is wrong sometimes!!
                     replace_entry = true;
             } else
                 replace_entry = true;
