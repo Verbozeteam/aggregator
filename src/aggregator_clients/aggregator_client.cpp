@@ -69,9 +69,12 @@ bool AggregatorClient::OnMessage(json msg) {
     std::string old_room_id = m_room_id;
     if (msg.find("config") != msg.end()) {
         try {
-            m_room_id = msg["config"]["id"];
+            if (msg["config"]["id"].is_string())
+                m_room_id = msg["config"]["id"];
+            else
+                LOG(warning) << "Received a room id that is not a string";
         } catch (...) {
-            m_room_id = "";
+            LOG(warning) << "Failed to read room id from " << msg["config"];
         }
     }
     if (old_room_id != m_room_id && m_room_id != "") {

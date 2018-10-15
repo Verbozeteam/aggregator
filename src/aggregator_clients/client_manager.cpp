@@ -29,7 +29,7 @@ void ClientManager::__onDeviceDiscovered(DISCOVERED_DEVICE dev) {
 
 void ClientManager::OnControlCommandFromAggregatorClient(AggregatorClient* client_from, json command) {
     std::string client_name = client_from->GetID();
-    if (command.find("code") == command.end()) {
+    if (command.find("code") == command.end() || !command["code"].is_number()) {
         LOG(warning) << "Received control command from " << client_name << " without code " << command.dump();
         return;
     }
@@ -65,7 +65,7 @@ void ClientManager::__onControlCommandFromVerboze(json command, int code, Aggreg
             VerbozeAPI::SendCommand(blueprint);
             break;
         } case CONTROL_CODE_GET_THING_STATE: {
-            if (command.find("thing-id") != command.end()) {
+            if (command.find("thing-id") != command.end() && command["thing-id"].is_string()) {
                 std::string thing_id = command["thing-id"];
                 json thing_state = target_room->GetCache(thing_id);
                 if (!thing_state.is_null()) {
@@ -93,7 +93,7 @@ void ClientManager::__onControlCommandFromVerboze(json command, int code, Aggreg
 
 void ClientManager::__onCommandFromVerboze(json command) {
     auto command_it = command.find("__room_id");
-    if (command_it != command.end()) {
+    if (command_it != command.end() && command_it.value().is_string()) {
         std::string room_id = command_it.value();
         command.erase("__room_id");
 
