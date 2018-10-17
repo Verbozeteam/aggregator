@@ -4,7 +4,7 @@ Aggregates data from kernels
 # Building
 ## Requirements
 ### Boost
-To install boost, [download it](http://www.boost.org/users/download/), extract it and and run:
+To install boost 1.65.x, [download it](http://www.boost.org/users/download/), extract it and and run:
 ```
     ./bootstrap.sh
     ./b2 install
@@ -21,10 +21,10 @@ Repository can be found [here](https://github.com/warmcat/libwebsockets).
 ```
     git clone https://github.com/warmcat/libwebsockets.git
     cd libwebsockets
-    mkdir build
+    mkdir build && cd build
     # ==================
     # FOR MAC:
-    cmake .. OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
+    cmake .. -OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
     # NON-MAC:
     cmake ..
     # ==================
